@@ -2,7 +2,17 @@
 #' @importFrom magrittr %>%
 #' @importFrom dplyr arrange
 #' @export
-parse_taxonomy_cutoffs <- function(cutoffs_file) {
+parse_taxonomy_cutoffs <- function(cutoffs_file = NULL) {
+  # Robust path resolution for cutoffs file
+  if (is.null(cutoffs_file) || !file.exists(cutoffs_file)) {
+    cutoffs_file <- system.file("extdata", "taxonomy_cutoffs.csv", package = "ClassifyITS")
+    if (!file.exists(cutoffs_file) || nchar(cutoffs_file) == 0) {
+      cutoffs_file <- file.path("inst", "extdata", "taxonomy_cutoffs.csv")
+    }
+  }
+  if (!file.exists(cutoffs_file) || nchar(cutoffs_file) == 0) {
+    stop("Could not locate taxonomy_cutoffs.csv. Please reinstall the package or supply a custom file.")
+  }
   cutoffs_raw <- read.csv(cutoffs_file, stringsAsFactors = FALSE)
   tax_ranks <- c("kingdom", "phylum", "class", "order", "family", "genus", "species")
   long_cutoffs <- list()
@@ -41,13 +51,12 @@ parse_taxonomy_cutoffs <- function(cutoffs_file) {
   list(long = cutoffs_long, ranks = tax_ranks)
 }
 
-
 #' Hierarchical best-hit taxonomy assignment with per-rank fallback rule
 #'
 #' Pass ONLY those OTUs that haven't been assigned already!
 #' For each rank, if the best e-value hit is undefined and the second-best hit is defined
 #' and at least 60% as good, use the second-best hit's value for that rank.
-#' 
+#'
 #' @export
 best_hit_taxonomy_assignment <- function(blast_qc, cutoffs_long, defaults) {
   tax_ranks <- c("kingdom", "phylum", "class", "order", "family", "genus", "species")

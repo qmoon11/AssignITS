@@ -65,6 +65,8 @@ library(ClassifyITS)
 
 
 results <- ITS_assignment(
-  blast_file = "../megablast_ITS2.tsv",
-  rep_fasta = "../dna-sequences_ITS.fasta"
+  blast_file = "age/megablast_ITS2.tsv",
+  rep_fasta = "age/dna-sequences_ITS.fasta"
 )
+
+getwd()

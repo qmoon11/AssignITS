@@ -20,12 +20,10 @@ easy_assignments <- function(
   easy_otus <- c()
   all_otus <- unique(blast_filtered$qseqid)
   
-  # --- Path resolution for cutoffs_file ---
-
+  # --- Robust path resolution for cutoffs_file ---
   if (is.null(cutoffs_file) || !file.exists(cutoffs_file)) {
-    # Try installed package location (system.file always works for users)
     cutoffs_file <- system.file("extdata", "taxonomy_cutoffs.csv", package = "ClassifyITS")
-    # If running in development mode and system.file fails (empty string), try local path
+    # If running in development mode and system.file fails (returns ""), try local package path
     if (!file.exists(cutoffs_file) || nchar(cutoffs_file) == 0) {
       cutoffs_file <- file.path("inst", "extdata", "taxonomy_cutoffs.csv")
     }

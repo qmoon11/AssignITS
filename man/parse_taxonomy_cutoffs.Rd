@@ -4,7 +4,7 @@
 \alias{parse_taxonomy_cutoffs}
 \title{Parse taxonomy cutoffs file}
 \usage{
-parse_taxonomy_cutoffs(cutoffs_file)
+parse_taxonomy_cutoffs(cutoffs_file = NULL)
 }
 \description{
 Parse taxonomy cutoffs file

@@ -17,8 +17,19 @@ ITS_assignment <- function(
     n_cutoff = 1,
     outdir = "outputs"
 ) {
+  # --- Robust path resolution for cutoffs_file ---
+  if (is.null(cutoffs_file) || !file.exists(cutoffs_file)) {
+    cutoffs_file <- system.file("extdata", "taxonomy_cutoffs.csv", package = "ClassifyITS")
+    # Fallback for dev mode: try local package path if system.file fails (returns "")
+    if (!file.exists(cutoffs_file) || nchar(cutoffs_file) == 0) {
+      cutoffs_file <- file.path("inst", "extdata", "taxonomy_cutoffs.csv")
+    }
+  }
+  if (!file.exists(cutoffs_file) || nchar(cutoffs_file) == 0) {
+    stop("Could not locate taxonomy_cutoffs.csv. Please reinstall the package or supply a custom file.")
+  }
+  
   # Set up output paths
-  if (!dir.exists(outdir)) dir.create(outdir, recursive = TRUE)
   hist_dir <- file.path(outdir, "individual_plots")
   if (!dir.exists(hist_dir)) dir.create(hist_dir, recursive = TRUE)
   assignments_file <- file.path(outdir, "initial_assignments.csv")
@@ -37,8 +48,8 @@ ITS_assignment <- function(
   n_fail_otus <- N_check$qseqid[N_check$N_flag]
   
   # Step 4: Warn if any OTUs failed QC
-  total_otus <- length(names(rep_seqs))  # number of input FASTA sequences
-  qc_pass <- blast_all$qseqid            # OTUs that passed BLAST QC
+  total_otus <- length(names(rep_seqs))
+  qc_pass <- blast_all$qseqid
   failed_otus <- setdiff(names(rep_seqs), qc_pass)
   num_failed <- length(failed_otus)
   if (num_failed > 0) {
