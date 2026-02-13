@@ -42,6 +42,8 @@ if (!requireNamespace("BiocManager", quietly = TRUE))
 
 # Install Biostrings
 BiocManager::install("Biostrings")
+
+library(Biostrings)
 ```
 
 
