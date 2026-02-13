@@ -30,10 +30,9 @@ ITS_assignment <- function(
   }
   
   # Set up output paths
-  hist_dir <- file.path(outdir, "individual_plots")
-  if (!dir.exists(hist_dir)) dir.create(hist_dir, recursive = TRUE)
+  if (!dir.exists(outdir)) dir.create(outdir, recursive = TRUE)
+  pdf_file <- file.path(outdir, "combined_taxonomy_graphics.pdf")
   assignments_file <- file.path(outdir, "initial_assignments.csv")
-  pdf_file <- file.path(hist_dir, "combined_taxonomy_graphics.pdf")
   
   # Step 1: QC load
   ldat <- load_and_check(blast_file, rep_fasta)
