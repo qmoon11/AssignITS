@@ -80,3 +80,33 @@ See [Check Contamination](check-contamination.md) for descriptions of how to che
 
 See [Citations](citations.md) for a list of relevant literature
 - please cite ClassifyITS in your publications if you use it for your research!
+
+---
+
+## About Taxonomic Cutoffs
+
+ClassifyITS uses taxon-specific cutoffs for kingdom through species. Default cutoffs are provided for all fungal phyla and most common classes and orders found in ITS data. The current list can be seen in `inst/extdata/taxonomy_cutoffs.csv` in the package source code.
+
+You can provide your own custom cutoffs file to fine-tune assignments for your dataset or research question.
+
+If you are knowledgeable in a specific taxonomic group and think ClassifyITS could benefit from modified cutoffs for a particular class or order, please reach out with proposed cutoffs and supporting citations. Community contributions are welcomed!
+
+> The package is designed so cutoffs can be easily updated as new fungal groups are discovered and taxonomy is refined.
+
+---
+
+## Cutoff Logic
+
+- **E-values** are favored at higher taxonomic levels (kingdom, phylum) due to variability in sequence similarity and database effects.
+- **Percent identity** is favored at lower taxonomic levels (genus, species), where research has established thresholds for ITS similarity within species and genera.
+
+Metabarcoding pipelines are inherently reliant on the idea that percent identity can differentiate species or OTUs. ClassifyITS provides a conservative starting point for taxonomy assignment, with flexibility for manual curation and extension.
+
+---
+
+## Future Directions and Community Ideas
+
+- Automatic OTU binning with taxonomic-informed cutoffs remains an exciting area for environemental microbiology.
+- For example: updating SWARM software to integrate BLAST+taxonomic cutoffs for more accurate OTU clustering could be valuable. I hope someone who is very good at computer can do this!
+
+---

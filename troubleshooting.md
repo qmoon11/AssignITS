@@ -72,6 +72,7 @@ Without careful examination, you may notice that many (~1%) of representative se
 ClassifyITS does NOT generate BLAST databases or run BLAST itself.
 You must generate BLAST output externally (see Data Preparation).
 BLAST is well implemented and meant to be run on HPC, not within R.
+Theoretically, you could run the R package rBLAST locally on a small dataset, but it is not recommended for large datasets like UNITE
 
 ---
 
