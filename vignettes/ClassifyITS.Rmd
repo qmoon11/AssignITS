@@ -19,7 +19,7 @@ This vignette shows how to use ClassifyITS to assign taxonomy to fungal ITS sequ
 library(ClassifyITS)
 
 # Paths to example BLAST and FASTA files in your package (replace as needed)
-blast_path <- system.file("extdata", "example_BLAST.csv", package = "ClassifyITS")
+blast_path <- system.file("extdata", "example_BLAST.tsv", package = "ClassifyITS")
 fasta_path <- system.file("extdata", "example_FASTA.fasta", package = "ClassifyITS")
 
 # Run the assignment pipeline

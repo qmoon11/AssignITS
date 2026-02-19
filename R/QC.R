@@ -10,24 +10,9 @@
 load_and_check <- function(blast_file, rep_fasta, taxonomy_col = "stitle") {
   expected_names <- c("qseqid", "sseqid", "pident", "length", "mismatch", "gapopen",
                       "qstart", "qend", "sstart", "send", "evalue", "bitscore", "stitle")
-  
-  # Detect file type from extension and read appropriately
-  file_ext <- tolower(tools::file_ext(blast_file))
-  if (file_ext == "csv") {
-    blast <- read.csv(blast_file, header = TRUE, stringsAsFactors = FALSE)
-    if (!all(expected_names %in% colnames(blast))) {
-      blast <- read.csv(blast_file, header = FALSE, col.names = expected_names, stringsAsFactors = FALSE)
-    }
-  } else if (file_ext %in% c("tsv", "txt")) {
-    blast <- read.table(blast_file, sep = "\t", header = TRUE, stringsAsFactors = FALSE)
-    if (!all(expected_names %in% colnames(blast))) {
-      blast <- read.table(blast_file, sep = "\t", header = FALSE, col.names = expected_names, stringsAsFactors = FALSE)
-    }
-  } else {
-    stop("blast_file must have a .csv or .tsv extension.")
-  }
-  if ("length" %in% colnames(blast)) {
-    blast$length <- as.numeric(blast$length)
+  blast <- read.table(blast_file, sep = "\t", header = TRUE)
+  if (!all(expected_names %in% colnames(blast))) {
+    blast <- read.table(blast_file, sep = "\t", header = FALSE, col.names = expected_names)
   }
   
   if (taxonomy_col %in% colnames(blast)) {
@@ -78,7 +63,6 @@ load_and_check <- function(blast_file, rep_fasta, taxonomy_col = "stitle") {
   if (!file.exists(rep_fasta)) stop("FASTA file not found.")
   if (!grepl("\\.(fa|fasta)$", rep_fasta, ignore.case = TRUE)) stop(".FASTA format required.")
   rep_seqs <- Biostrings::readDNAStringSet(rep_fasta)
-  
   list(blast = blast, rep_seqs = rep_seqs)
 }
 
