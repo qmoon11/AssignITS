@@ -7,4 +7,5 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 Imports: ggplot2, dplyr, magrittr, Biostrings, gridExtra, grid, reshape2, RColorBrewer, data.table
 RoxygenNote: 7.3.3
+Remotes: bioc::Biostrings
 
