@@ -18,7 +18,7 @@ AssignITS is based on taxonomic cutoff criteria from "The Global Soil Mycobiome 
 ---
 ## Installation
 
-You can download and install ClassifyITS directly from GitHub using the `devtools` package in R:
+Download and install ClassifyITS directly from GitHub using the `devtools` package in R:
 
 ```r
 # Install devtools if you don't have it yet
@@ -38,7 +38,7 @@ This package depends on [Biostrings](https://bioconductor.org/packages/release/b
 
 **Important:**  
 Biostrings is _not_ installed automatically via CRAN or `install.packages()`.  
-You must install BiocManager and then Biostrings before installing or using ClassifyITS.
+Users must install BiocManager and then Biostrings before installing or using ClassifyITS.
 
 ```r
 # Install BiocManager if needed
@@ -50,14 +50,6 @@ BiocManager::install("Biostrings")
 
 library(Biostrings)
 ```
-
-## Inspecting taxonomic assingments
-
-It is recommended to carefully examine 1) OTUs that failed the pipeline 2) any OTUs that failed to assign at kingdom level (see list in outputs/intial.assingments.csv) after classifying) as these are likely sequencing errors.
-See [Inspection](docs/inspection.md) for information on inspecting results, including:
-- How to interpret the `initial_assignments.csv` output file
-- Common reasons for failed assignments and how to identify them
-- Tips for manual curation of taxonomy assignments (e.g. manually checking BLAST results for fungal OTUs unassigned at phylum or class level)
 
 ## Documentation & User Guides
 
@@ -106,6 +98,16 @@ If you are knowledgeable in a specific taxonomic group and think ClassifyITS cou
 - **Percent identity** is favored at lower taxonomic levels (genus, species), where research has established thresholds for ITS similarity within species and genera.
 
 Metabarcoding pipelines are inherently reliant on the idea that percent identity can differentiate species or OTUs. ClassifyITS provides a conservative starting point for taxonomy assignment, with flexibility for manual curation and extension.
+
+---
+
+## Inspecting taxonomic assingments
+
+It is recommended to carefully examine 1) OTUs that failed the pipeline 2) any OTUs that failed to assign at kingdom level (see list in outputs/intial.assingments.csv) after classifying) as these are likely sequencing errors.
+See [Inspection](docs/inspection.md) for information on inspecting results, including:
+- How to interpret the `initial_assignments.csv` output file
+- Common reasons for failed assignments and how to identify them
+- Tips for manual curation of taxonomy assignments (e.g. manually checking BLAST results for fungal OTUs unassigned at phylum or class level)
 
 ---
 
