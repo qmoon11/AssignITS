@@ -1,10 +1,9 @@
 # References
-# References
 
 If you use ClassifyITS in your research or publications, **please cite this package** as:
 
-Moon, Q. (2024). ClassifyITS: Quality control, taxonomy assignment, and visualization of fungal OTU representative sequences based on BLAST results. R package, version 0.1.0. [https://github.com/qmoon/ClassifyITS](https://github.com/yourusername/ClassifyITS)
-
+Moon, Q. (2026). ClassifyITS: Quality control, taxonomy assignment, and visualization of fungal OTU representative sequences based on BLAST results. R package, version 0.1.0. [https://github.com/qmoon/ClassifyITS](https://github.com/yourusername/ClassifyITS)
+*this will be updates as the package is published on CRAN*
 
 
 Below are key citations and resources relevant to the ClassifyITS pipeline and fungal ITS taxonomy assignment.

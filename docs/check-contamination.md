@@ -1,6 +1,6 @@
 # Screening for Potential Contaminants
 
-This guide describes how to identify possible contaminants in your fungal ITS dataset using the provided `potential-contamination.fasta` file and BLAST+.
+This guide describes how to identify possible contaminants in a fungal ITS amplicon dataset using the provided `potential-contamination.fasta` file and BLAST+.
 This is not implemented in the package but I find it useful to check. 
 ---
 
@@ -16,6 +16,7 @@ Download the contaminant reference file from the github repository:
 ## Step 2: Build a BLAST Database from the Contaminant FASTA
 
 Using BLAST+ (already installed from [Data Preparation](data-preparation.md)), turn the FASTA into a database:
+*Again this will be fastest on HPC
 
     makeblastdb \
         -in potential-contamination.fasta \
@@ -24,7 +25,7 @@ Using BLAST+ (already installed from [Data Preparation](data-preparation.md)), t
 
 ---
 
-## Step 3: BLAST Your Rep-Seqs Against the Contaminant Database
+## Step 3: BLAST Rep-Seqs Against the Contaminant Database
 
 Run BLASTn (megablast recommended for high similarity):
 
@@ -51,7 +52,7 @@ To find matches that are likely contaminants:
 - Filter for percent identity (`pident`) ≥ 98%  
 - Filter for alignment length (`length`) > 100 bp
 
-You can do this with `awk` or Excel, but here’s how with `awk`:
+Do this with `awk` or Excel, but here’s how with `awk`:
 
     awk '$3 >= 98 && $4 > 100' blast_contam.tsv > filtered_contaminants.tsv
 
@@ -63,7 +64,7 @@ Where:
 
 ## Step 5: Use Results
 
-- Review `filtered_contaminants.tsv` for sequences potentially matching contaminants in your data.
+- Review `filtered_contaminants.tsv` for sequences potentially matching contaminants in the data.
 - Remove or flag these sequences for downstream analysis.
 
 ---
@@ -71,8 +72,9 @@ Where:
 ## Notes
 
 - Adjust the percent identity (98%) or alignment length (100bp) as needed for your project.
-- The contaminant screening step can be completed before or after taxonomic classifcation.
-- The provided `potential-contamination.fasta` is not exhaustive, so consider adding other known contaminants relevant to your environment or sequencing method. It currently the ITS sequence from the type specimen of the obligalty human associated .
+- The contaminant screening step can be completed before or after taxonomic classification.
+- The provided `potential-contamination.fasta` is not exhaustive, so consider adding other known contaminants relevant to your environment or sequencing method. 
+It currently contains ITS sequence from the type specimen of the obligatory human associated taxa.
 
 | Species                      | Type Strain/Source            | GenBank Accession |
 |------------------------------|-------------------------------|-------------------|

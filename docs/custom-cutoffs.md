@@ -1,16 +1,13 @@
 ## Optional: Custom Taxonomy Cutoffs
+ClassifyITS contains the default taxonomic cutoffs supplied in Tedersoo et al. (2021) and Tedersoo et al. (2022).
 
-Optionally, you can provide a custom taxonomy cutoffs file via the `cutoffs_file` parameter in the pipeline.
+Optionally, users can provide a custom taxonomy cutoffs file via the `cutoffs_file` parameter in the pipeline.
 
 Format:
-The file should be a CSV table with columns for each rank, name and its cutoffs (either e-value or percent identity), for example:
-
-taxonomic_rank,evalue_cutoff,pident_cutoff
-kingdom,1e-5,80
-phylum,1e-10,85
+The file should be a CSV table with columns for each rank, name and its cutoffs (either e-value or percent identity).
 
 How to use:
-- Specify the path to your custom cutoffs file using `cutoffs_file` in your pipeline call:
+- Specify the path to custom cutoffs file using `cutoffs_file` in pipeline call:
 
     ITS_assignment(
         blast_file = "input/blast_results.tsv",
