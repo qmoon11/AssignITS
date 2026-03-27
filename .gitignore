@@ -3,3 +3,7 @@
 .Rproj.user
 *.tar.gz
 outputs/
+
+# Local / OS files
+.Rapp.history
+.DS_Store
