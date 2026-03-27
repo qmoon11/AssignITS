@@ -7,3 +7,6 @@ outputs/
 # Local / OS files
 .Rapp.history
 .DS_Store
+
+# macOS
+.DS_Store
