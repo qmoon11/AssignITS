@@ -32,25 +32,6 @@ library(ClassifyITS)
 ```
 ---
 
-## Prerequisites
-
-This package depends on [Biostrings](https://bioconductor.org/packages/release/bioc/html/Biostrings.html), a Bioconductor package for manipulating biological sequences in R.
-
-**Important:**  
-Biostrings is _not_ installed automatically via CRAN or `install.packages()`.  
-Users must install BiocManager and then Biostrings before installing or using ClassifyITS.
-
-```r
-# Install BiocManager if needed
-if (!requireNamespace("BiocManager", quietly = TRUE))
-    install.packages("BiocManager")
-
-# Install Biostrings
-BiocManager::install("Biostrings")
-
-library(Biostrings)
-```
-
 ## Documentation & User Guides
 
 See [Data Preparation](docs/data-preparation.md) for detailed BLAST setup and input requirements, including:

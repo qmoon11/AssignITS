@@ -7,14 +7,14 @@
 trim_alignments(blast, rep_seqs, fraction = NULL)
 }
 \arguments{
-\item{blast}{BLAST dataframe}
+\item{blast}{BLAST dataframe.}
 
-\item{rep_seqs}{DNAStringSet}
+\item{rep_seqs}{Named list of DNA strings (from \code{seqinr::read.fasta(as.string = TRUE)}).}
 
-\item{fraction}{Numeric fraction of median rep-seq length (if NULL, defaults to 0.6)}
+\item{fraction}{Numeric fraction of median rep-seq length (if NULL, defaults to 0.6).}
 }
 \value{
-Filtered BLAST dataframe
+Filtered BLAST dataframe.
 }
 \description{
 Trim BLAST alignments by minimum length

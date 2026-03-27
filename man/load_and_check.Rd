@@ -7,14 +7,14 @@
 load_and_check(blast_file, rep_fasta, taxonomy_col = "stitle")
 }
 \arguments{
-\item{blast_file}{Path to BLAST results TSV file}
+\item{blast_file}{Path to BLAST results TSV file.}
 
-\item{rep_fasta}{Path to representative sequences FASTA file}
+\item{rep_fasta}{Path to representative sequences FASTA file.}
 
-\item{taxonomy_col}{The column in BLAST file containing taxonomy strings (default "stitle")}
+\item{taxonomy_col}{The column in BLAST file containing taxonomy strings (default "stitle").}
 }
 \value{
-List with BLAST dataframe (kingdom-filtered) and rep_seqs DNAStringSet
+List with BLAST dataframe (kingdom-filtered) and rep_seqs as a named list of DNA strings.
 }
 \description{
 Load and check BLAST results and rep-seq FASTA

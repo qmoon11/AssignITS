@@ -7,7 +7,8 @@
 check_N(rep_seqs, cutoff = 1)
 }
 \arguments{
-\item{rep_seqs}{DNAStringSet or character vector of representative sequences.}
+\item{rep_seqs}{Character vector, list (e.g., from seqinr::read.fasta(as.string=TRUE)),
+or (optionally) a DNAStringSet.}
 
 \item{cutoff}{Numeric, percent threshold (default 1).}
 }
@@ -18,7 +19,7 @@ Data frame with columns: qseqid, N_percent, N_flag.
 Calculates the proportion of "N" bases (ambiguous bases) in each sequence and flags if above the given threshold.
 }
 \examples{
-seqs <- Biostrings::DNAStringSet(c(seq1 = "ATGCNNNN", seq2 = "NNNNATGC"))
+seqs <- c(seq1 = "ATGCNNNN", seq2 = "NNNNATGC")
 check_N(seqs)
 check_N(seqs, cutoff = 10)
 }
