@@ -14,7 +14,7 @@ AssignITS is based on taxonomic cutoff criteria from "The Global Soil Mycobiome 
 - Performs QC on user-imported representative sequence FASTA and BLAST results
 - Assigns taxonomy using kingdom through species taxon-specific e-values and sequence similarity thresholds
 - Outputs an initial CSV taxonomy table for manual inspection, as well as summary graphics and statistics
-- [View vignette](vignettes/ClassifyITS.html) for detailed usage instructions and examples
+- [View vignette](https://github.com/qmoon11/ClassifyITS/tree/main/vignettes) for detailed usage instructions and examples
 ---
 ## Installation
 
