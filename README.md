@@ -34,29 +34,29 @@ library(ClassifyITS)
 
 ## Documentation & User Guides
 
-See [Data Preparation](docs/data-preparation.md) for detailed BLAST setup and input requirements, including:
+See [Data Preparation](https://github.com/qmoon11/ClassifyITS/blob/main/docs/data-preparation.md) for detailed BLAST setup and input requirements, including:
 - How to use NCBI BLAST+ with the UNITE eukaryote database
 - Proper FASTA and BLAST result formatting
 - Example shell commands for HPC or local runs
 
-See [Quick Start](docs/quick-start.md) for a step-by-step usage guide, including:
+See [Quick Start](https://github.com/qmoon11/ClassifyITS/blob/main/docs/quick-start.md) for a step-by-step usage guide, including:
 - Example R code for running the pipeline with `ITS_assignment`
 - Minimal installation and first run walkthrough
 
-See [Custom Cutoffs](docs/custom-cutoffs.md) to fine-tune assignments, including:
+See [Custom Cutoffs](https://github.com/qmoon11/ClassifyITS/blob/main/docs/custom-cutoffs.md) to fine-tune assignments, including:
 - How to provide your own taxonomy cutoffs file
 - Example cutoff file formats
 - Using the `cutoffs_file`, `cutoff_fraction`, `n_cutoff`, and `outdir` arguments
 
-See [Troubleshooting](docs/troubleshooting.md) for help with common errors, including:
+See [Troubleshooting](https://github.com/qmoon11/ClassifyITS/blob/main/docs/troubleshooting.md) for help with common errors, including:
 - Installation tips for Biostrings and dependencies
 - BLAST output format issues
 - FAQ and support contact information
 
-See [Check Contamination](docs/check-contamination.md) for descriptions of how to check for common contaminants in your dataset, including:
+See [Check Contamination](https://github.com/qmoon11/ClassifyITS/blob/main/docs/check-contamination.md) for descriptions of how to check for common contaminants in your dataset, including:
 - Common human associated contaminants and how to identify them in your BLAST results
 
-See [Citations](docs/citations.md) for a list of relevant literature
+See [Citations](https://github.com/qmoon11/ClassifyITS/blob/main/docs/citations.md) for a list of relevant literature
 - please cite ClassifyITS in your publications if you use it for your research!
 
 ---
@@ -85,7 +85,7 @@ Metabarcoding pipelines are inherently reliant on the idea that percent identity
 ## Inspecting taxonomic assingments
 
 It is recommended to carefully examine 1) OTUs that failed the pipeline 2) any OTUs that failed to assign at kingdom level (see list in outputs/intial.assingments.csv) after classifying) as these are likely sequencing errors.
-See [Inspection](docs/inspection.md) for information on inspecting results, including:
+See [Inspection](https://github.com/qmoon11/ClassifyITS/blob/main/docs/inspection.md) for information on inspecting results, including:
 - How to interpret the `initial_assignments.csv` output file
 - Common reasons for failed assignments and how to identify them
 - Tips for manual curation of taxonomy assignments (e.g. manually checking BLAST results for fungal OTUs unassigned at phylum or class level)
