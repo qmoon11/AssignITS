@@ -1,41 +1,39 @@
 #' Easy taxonomy assignment for OTUs using BLAST QC output & phylum-specific thresholds.
 #'
 #' @param blast_filtered QC-filtered BLAST dataframe (with parsed taxonomy columns!)
-#' @param cutoffs_file Path to taxonomy cutoffs CSV file. Defaults to package's "extdata/taxonomy_cutoffs.csv"
+#' @param cutoffs_file Path to taxonomy cutoffs CSV file. If not supplied or invalid,
+#'   attempts to locate the default file in the package.
 #' @param default_cutoff Default percent identity cutoff for species assignment (default: 98)
-#' @param package_name If using in a package, specify the package name for system.file fallback (default: NULL)
 #' @return List with assigned_otus_df and remaining_otus_df
-#' @importFrom magrittr %>%
-#' @importFrom dplyr arrange
+#' @importFrom stats setNames
 #' @export
 easy_assignments <- function(
     blast_filtered,
     cutoffs_file = NULL,
-    default_cutoff = 98,
-    package_name = NULL
+    default_cutoff = 98
 ) {
   taxonomic_levels <- c("kingdom", "phylum", "class", "order", "family", "genus", "species")
   expected_columns <- c("qseqid", taxonomic_levels)
   assigned_otus <- list()
-  easy_otus <- c()
+  easy_otus <- character()
   all_otus <- unique(blast_filtered$qseqid)
   
-  # --- Robust path resolution for cutoffs_file ---
+  # Locate cutoffs file (installed package path)
   if (is.null(cutoffs_file) || !file.exists(cutoffs_file)) {
     cutoffs_file <- system.file("extdata", "taxonomy_cutoffs.csv", package = "ClassifyITS")
-    # If running in development mode and system.file fails (returns ""), try local package path
-    if (!file.exists(cutoffs_file) || nchar(cutoffs_file) == 0) {
-      cutoffs_file <- file.path("inst", "extdata", "taxonomy_cutoffs.csv")
-    }
   }
-  if (!file.exists(cutoffs_file) || nchar(cutoffs_file) == 0) {
+  if (!nzchar(cutoffs_file) || !file.exists(cutoffs_file)) {
     stop("Could not locate taxonomy_cutoffs.csv. Please reinstall the package or supply a custom file.")
   }
   
   cutoffs_data <- parse_taxonomy_cutoffs(cutoffs_file)$long
-  phylum_species_cutoff <- cutoffs_data[cutoffs_data$rank == "species" &
-                                          cutoffs_data$cutoff_type == "percent_identity", ]
-  phylum_species_cutoff_vec <- setNames(as.numeric(phylum_species_cutoff$cutoff_value), phylum_species_cutoff$phylum)
+  phylum_species_cutoff <- cutoffs_data[
+    cutoffs_data$rank == "species" & cutoffs_data$cutoff_type == "percent_identity",
+  ]
+  phylum_species_cutoff_vec <- stats::setNames(
+    as.numeric(phylum_species_cutoff$cutoff_value),
+    phylum_species_cutoff$phylum
+  )
   
   # --- STEP 1: Assign easy OTUs (100% identity, kingdom Fungi, matching rules)
   for (otu in all_otus) {
@@ -51,11 +49,18 @@ easy_assignments <- function(
       easy_otus <- c(easy_otus, otu)
       next
     }
+    
     other_levels <- taxonomic_levels[1:6]
     ref_tax <- as.character(fungi_hits[1, other_levels])
-    all_other_same <- all(apply(fungi_hits[, other_levels, drop=FALSE], 1, function(vals) all(as.character(vals) == ref_tax)))
+    all_other_same <- all(apply(
+      fungi_hits[, other_levels, drop = FALSE],
+      1,
+      function(vals) all(as.character(vals) == ref_tax)
+    ))
+    
     unique_species <- unique(fungi_hits$species)
     unique_species <- unique_species[!is.na(unique_species) & unique_species != "Unclassified" & unique_species != ""]
+    
     if (all_other_same) {
       if (length(unique_species) == 1) {
         taxonomy <- as.list(fungi_hits[1, taxonomic_levels])
@@ -92,16 +97,24 @@ easy_assignments <- function(
     
     genus_check <- function(hit, others) {
       if (nrow(others) == 0) return(TRUE)
-      all_genus_disagree <- all(others$genus != hit$genus | is.na(others$genus) | others$genus == "Unclassified" | others$genus == "")
-      return(!all_genus_disagree)
+      all_genus_disagree <- all(
+        others$genus != hit$genus |
+          is.na(others$genus) |
+          others$genus == "Unclassified" |
+          others$genus == ""
+      )
+      !all_genus_disagree
     }
+    
     assigned_taxonomy <- NULL
+    
     if (nrow(high_hits) == 1) {
-      if (genus_check(high_hits[1,], high_hits[-1,])) {
+      if (genus_check(high_hits[1, ], high_hits[-1, ])) {
         assigned_taxonomy <- as.list(high_hits[1, taxonomic_levels])
         assigned_taxonomy$qseqid <- otu
       }
     }
+    
     if (is.null(assigned_taxonomy) && nrow(high_hits) > 1) {
       pidents <- as.numeric(high_hits$pident)
       best_idx <- which.max(pidents)
@@ -113,6 +126,7 @@ easy_assignments <- function(
         }
       }
     }
+    
     if (is.null(assigned_taxonomy) && nrow(high_hits) > 1) {
       unique_genus <- unique(high_hits$genus)
       unique_genus <- unique_genus[!is.na(unique_genus) & unique_genus != "Unclassified" & unique_genus != ""]
@@ -122,9 +136,12 @@ easy_assignments <- function(
         assigned_taxonomy$qseqid <- otu
       }
     }
+    
     if (!is.null(assigned_taxonomy)) {
       for (lvl in taxonomic_levels[1:6]) {
-        if (assigned_taxonomy[[lvl]] == "Unclassified" || is.na(assigned_taxonomy[[lvl]]) || assigned_taxonomy[[lvl]] == "") {
+        if (assigned_taxonomy[[lvl]] == "Unclassified" ||
+            is.na(assigned_taxonomy[[lvl]]) ||
+            assigned_taxonomy[[lvl]] == "") {
           check_hits <- otu_hits[as.numeric(otu_hits$pident) >= 90, ]
           defined_vals <- check_hits[[lvl]][!is.na(check_hits[[lvl]]) & check_hits[[lvl]] != "" & check_hits[[lvl]] != "Unclassified"]
           if (length(defined_vals) > 0 && length(unique(defined_vals)) == 1) {
@@ -139,30 +156,40 @@ easy_assignments <- function(
   }
   
   # -- Build assigned_otus_df, guaranteeing all columns exist and are ordered --
-  assigned_otus_df <- do.call(rbind, lapply(assigned_otus, function(x) {
-    vals <- setNames(rep(NA, length(expected_columns)), expected_columns)
-    for (name in names(x)) {
-      if (name %in% expected_columns) {
-        vals[[name]] <- x[[name]]
+  if (length(assigned_otus) == 0) {
+    assigned_otus_df <- data.frame(
+      qseqid = character(),
+      kingdom = character(),
+      phylum = character(),
+      class = character(),
+      order = character(),
+      family = character(),
+      genus = character(),
+      species = character(),
+      stringsAsFactors = FALSE
+    )
+  } else {
+    assigned_otus_df <- do.call(rbind, lapply(assigned_otus, function(x) {
+      vals <- stats::setNames(rep(NA, length(expected_columns)), expected_columns)
+      for (nm in names(x)) {
+        if (nm %in% expected_columns) vals[[nm]] <- x[[nm]]
       }
-    }
-    as.data.frame(as.list(vals), stringsAsFactors = FALSE)
-  }))
-  rownames(assigned_otus_df) <- NULL  # remove rownames
+      as.data.frame(as.list(vals), stringsAsFactors = FALSE)
+    }))
+    rownames(assigned_otus_df) <- NULL
+  }
   
   still_remaining <- setdiff(all_otus, assigned_otus_df$qseqid)
   remaining_otus_df <- blast_filtered[blast_filtered$qseqid %in% still_remaining, ]
   
   # === FINAL KINGDOM CHECK ===
-  bad_otus <- c()
+  bad_otus <- character()
   for (otu in assigned_otus_df$qseqid) {
     otu_hits <- blast_filtered[blast_filtered$qseqid == otu, ]
     n_hits <- nrow(otu_hits)
     n_fungal <- sum(tolower(otu_hits$kingdom) == "fungi")
     if (n_hits == 0) next
-    if (n_fungal / n_hits <= 0.5) {
-      bad_otus <- c(bad_otus, otu)
-    }
+    if (n_fungal / n_hits <= 0.5) bad_otus <- c(bad_otus, otu)
   }
   if (length(bad_otus) > 0) {
     assigned_otus_df <- assigned_otus_df[!assigned_otus_df$qseqid %in% bad_otus, ]
@@ -171,22 +198,19 @@ easy_assignments <- function(
   }
   
   # === FINAL PHYLUM, CLASS, ORDER DOUBLE CHECK ===
-  bad_ranks <- c()
+  bad_ranks <- character()
   ranks_to_check <- c("phylum", "class", "order")
   for (otu in assigned_otus_df$qseqid) {
     otu_hits <- blast_filtered[blast_filtered$qseqid == otu, ]
     for (rank in ranks_to_check) {
       assigned_val <- assigned_otus_df[assigned_otus_df$qseqid == otu, rank]
-      # Is assigned value unclassified/blank/NA?
       if (is.na(assigned_val) || assigned_val == "" || assigned_val == "Unclassified") {
-        # Does any BLAST hit have a defined value at this rank?
         blast_vals <- otu_hits[[rank]]
         blast_defined <- blast_vals[!is.na(blast_vals) & blast_vals != "" & blast_vals != "Unclassified"]
         if (length(blast_defined) > 0) {
           bad_ranks <- c(bad_ranks, otu)
-          break # move on to next OTU after marking this one
+          break
         }
-        # If all BLAST hits at this rank are unclassified/blank/NA, keep assignment
       }
     }
   }
@@ -196,11 +220,10 @@ easy_assignments <- function(
     remaining_otus_df <- blast_filtered[blast_filtered$qseqid %in% still_remaining, ]
   }
   
-  # Final: guarantee column order
-  assigned_otus_df <- assigned_otus_df[, expected_columns, drop=FALSE]
+  assigned_otus_df <- assigned_otus_df[, expected_columns, drop = FALSE]
   
-  return(list(
+  list(
     assigned_otus_df = assigned_otus_df,
     remaining_otus_df = remaining_otus_df
-  ))
+  )
 }

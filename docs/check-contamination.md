@@ -8,7 +8,9 @@ This is not implemented in the package but I find it useful to check.
 
 Download the contaminant reference file from the github repository:
 
-    wget https://github.com/qmoon/ClassifyITS/inst/extdata/potential-contamination.fasta
+    wget -O potential_contamination.fasta \
+  "https://raw.githubusercontent.com/qmoon11/ClassifyITS/main/inst/extdata/potential_contamination.fasta"
+
 
 
 ---
@@ -19,7 +21,7 @@ Using BLAST+ (already installed from [Data Preparation](data-preparation.md)), t
 *Again this will be fastest on HPC
 
     makeblastdb \
-        -in potential-contamination.fasta \
+        -in potential_contamination.fasta \
         -dbtype nucl \
         -out contam_db
 

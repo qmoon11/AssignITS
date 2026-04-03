@@ -9,8 +9,8 @@ ClassifyITS does not run NCBI BLAST searches or build reference databases. These
     export PATH=/your/path/to/ncbi-blast-2.17.0+/bin:$PATH
 
 2. Download the latest UNITE eukaryotic ITS database from https://unite.ut.ee/
-
-    It is recommended to use the latest UNITE eukaryotic ITS database for best results. Download the "General FASTA release" that matches your needs. For example:  
+It is recommended to use the latest UNITE eukaryotic ITS database for best results. Download the "General FASTA release" that matches your needs. For example:  
+   
     UNITE/euk/sh_general_release_dynamic_s_all_19.02.2025.fasta
 
 3. Build the BLAST database:

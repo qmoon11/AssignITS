@@ -9,7 +9,7 @@ vignette: >
 
 ## Introduction
 
-This vignette shows how to use ClassifyITS to assign taxonomy to fungal ITS sequences, visualize results, and review QC outputs. Summary plots and tables are generated here, and are also compiled into a multi-page PDF for easy sharing.
+This vignette shows how to use ClassifyITS to assign taxonomy to fungal ITS sequences, visualize results, and review QC outputs. ClassifyITS returns summary plots and tables in-memory; optionally, it can also write a CSV and a multi-page PDF when you provide an output directory.
 
 ---
 
@@ -17,16 +17,16 @@ This vignette shows how to use ClassifyITS to assign taxonomy to fungal ITS sequ
 
 Assuming you have downloaded and installed the ClassifyITS package, you can run the taxonomy assignment pipeline using the example BLAST and FASTA files included in the package. Replace these paths with your own files as needed.
 
-For information on generating the required BLAST and FASTA files, see the [README]
+For information on generating the required BLAST and FASTA files, see the README.
 
 ```{r, message=FALSE, warning=FALSE}
-library(ClassifyITS) 
+library(ClassifyITS)
 
 # Paths to example BLAST and FASTA files in the package (replace with your own paths)
 blast_path <- system.file("extdata", "example_BLAST.tsv", package = "ClassifyITS")
 fasta_path <- system.file("extdata", "example_FASTA.fasta", package = "ClassifyITS")
 
-# Run the assignment pipeline, the only required inputs are the BLAST file and the representative sequence FASTA file
+# Run the assignment pipeline (no files are written by default)
 results <- ITS_assignment(
   blast_file = blast_path,
   rep_fasta  = fasta_path
@@ -36,64 +36,63 @@ results <- ITS_assignment(
 
 ---
 
-## Inspect Console Outputs
+## Messages and Warnings
 
-The pipeline will print:
-
-```
-Taxonomy assignments exported to outputs/initial_assignments.csv
-Saved taxonomy graphics and summary tables to PDF in outputs
-```
-
-If any OTUs failed quality control steps or did not receive an assignment, a warning will be displayed:
+By default, the pipeline is quiet. If you set `verbose = TRUE`, ClassifyITS will emit progress messages.
+If any OTUs failed quality control steps or did not receive an assignment, a warning may be displayed (this is normal in large datasets):
 
 ```
-Warning message:
-In ITS_assignment(blast_file = blast_path, rep_fasta = fasta_path) :
+In ITS_assignment(...) :
   Warning: X of your X FASTA sequences failed QC and could not be classified using this pipeline due to missing or poor BLAST results.
 ```
 
-This is normal in large datasets: a small number of OTUs often fail QC or don't receive a taxonomy assignment at certain levels. See the PDF out for an exact breakdown of how many OTUs passed each step in the pipeline. The CSV taxonomic outputs also notes all OTUs that failed QC.
-
-This warning is meant to remind users to review the outputs and consider manual curation for unassigned OTUs, especially if they are abundant or of particular interest in downstream analyses. Or perhaps discard these OTUs if they are rare and likely spurious. The pipeline provides the information needed to make informed decisions about how to handle these cases in your dataset.
-
-The most common reason for an OTU to fail QC is that the BLAST file did not contain any BLAST results for that OTU.
+This is normal in large datasets: a small number of OTUs often fail QC or don't receive a taxonomy assignment at certain levels. The most common reason for an OTU to fail QC is that the BLAST file did not contain any BLAST results for that OTU. This warning is meant to remind users to review the outputs and consider manual curation for unassigned OTUs, especially if they are abundant or of particular interest in downstream analyses. Or perhaps discard these OTUs if they are rare and likely spurious. The pipeline provides the information needed to make informed decisions about how to handle these cases in your dataset.
 
 
-## Potential masked warnings
 
-Depending on the version of R and the packages installed, you may see warnings about masked functions when running ClassifyITS. These are generally not a cause for concern as they indicate that certain functions from ClassifyITS have the same names as functions in other packages (usually data.table and Biostrings). The warning is just letting you know which version of the function will be used when called. These warnings can be safely ignored as they do not indicate any actual problems with the functionality of ClassifyITS.
+## Optional: Write CSV/PDF outputs
+
+To write outputs, supply an output directory. In vignettes, we write to a temporary directory:
+
+```{r, message=FALSE, warning=FALSE}
+outdir <- file.path(tempdir(), "ClassifyITS_outputs")
+dir.create(outdir, showWarnings = FALSE)
+
+results_written <- ITS_assignment(
+  blast_file = blast_path,
+  rep_fasta  = fasta_path,
+  outdir     = outdir,
+  verbose    = TRUE
+)
+
+results_written$assignments_file
+results_written$pdf_file
 
 ```
-The following object is masked from ‘package:IRanges’:
 
-    shift
 
-The following objects are masked from ‘package:S4Vectors’:
 
-    first, second
-```
 ---
 
 ## Visualize Summary Plots
 
-Below are the main summary plots. These are also compiled together into `outputs/combined_taxonomy_graphics.pdf`.
+Below are the main summary plots. You can also compile them into a multi-page PDF by providing pdf_file. 
 
 ```{r, echo=FALSE}
-# Generate summary graphics and tables
+# Create alignment histogram from pipeline outputs
 hist_plot <- plot_alignment_hist(results$blast_filtered, results$rep_seqs)
 
+# Build summary plots/tables in-memory (no PDF written by default)
 graphics <- save_taxonomy_graphics(
   all_results = results$all_results,
-  hist_plot = hist_plot
+  hist_plot   = hist_plot
 )
 ```
 
 
 ### Alignment length histogram
 
-This figure shows the distribution of BLAST alignment lengths across user specified BLAST results.
-One of the essential qualiy control steps in ClassifyITS is to filter out BLAST hits that are too short, as these may not provide reliable taxonomic information. The histogram includes vertical lines indicating the median BLAST alignment length, the cutoff length applied for filtering, and the mean length of the representative sequences in the FASTA file. 
+This figure shows the distribution of BLAST alignment lengths across user specified BLAST results. One of the essential quality control steps in ClassifyITS is to filter out BLAST hits that are too short, as these may not provide reliable taxonomic information. The histogram includes vertical lines indicating the median BLAST alignment length, the cutoff length applied for filtering, and the mean length of the representative sequences in the FASTA file.
 The default alignment cutoff is 0.6 of the Median BLAST Alignment length. This can also be adjusted with the parameter `cutoff_fraction` in the `plot_alignment_hist` function. See the quick start for details on how to adjust this parameter.
 
 
@@ -104,7 +103,8 @@ print(graphics$hist_plot)
 
 ### Assignment summary bar chart
 
-ClassifyITS is meant to assign taxonomy to studies targeting fungi, as ITS fungal primers occasionally pick up other reads (plants, alage, etc.) but these taxa are generally discarded in downstream analyses. The first taxonomic step in ClassifyITS is to apply kingdom specific cutoffs to the BLAST results. The taxonomic pipeline then proceeds to assign taxonomy to reads in kingdom fungi at the phylum, class, order, family, genus, and species levels. The assignment bar chart shows the number of fungal OTUs that received an assignment (as in not Unclassified) at each taxonomic level. This is a useful figure to quickly assess how many OTUs were successfully classified at each taxonomic level. Note that it is common for the number of OTUs assigned to drop at each taxonomic level, especially at the species level where many OTUs may not receive a confident assignment. This figure can help identify if there are any unexpected drops in assignment success that may warrant further investigation or manual review.
+ClassifyITS is meant to assign taxonomy to studies targeting fungi, as ITS fungal primers occasionally pick up other reads (plants, algae, etc.) but these taxa are generally discarded in downstream analyses. The first taxonomic step in ClassifyITS is to apply kingdom specific cutoffs to the BLAST results. The taxonomic pipeline then proceeds to assign taxonomy to reads in kingdom fungi at the phylum, class, order, family, genus, and species levels. The assignment bar chart shows the number of fungal OTUs that received an assignment (i.e., not "Unclassified") at each taxonomic level.
+
 
 ```{r assignment_bar_plot, fig.width=10, fig.height=6, echo=FALSE}
 # Assignment bar chart
@@ -132,7 +132,7 @@ print(graphics$phylum_plot)
 A breakdown of how many OTUs passed each step in the pipeline, including QC failures and taxonomic assignments at each level. This is a useful table to quickly assess the overall success of the taxonomy assignment process and identify any steps where a large number of OTUs may have failed or not received an assignment.
 
 ```{r, echo=FALSE}
-knitr::kable(head(graphics$step_table))
+knitr::kable(utils::head(graphics$step_table))
 ```
 
 ### Unique Taxa Counts Table
@@ -144,42 +144,54 @@ knitr::kable(graphics$final_count_tbl)
 
 
 
-## PDF Output
+## (Optional) Save the multi-page PDF
 
-> The PDF file [`outputs/combined_taxonomy_graphics.pdf`] contains all the summary plots and tables for concise review.
 
----
+```{r, message=FALSE, warning=FALSE}
+pdf_file <- file.path(tempdir(), "combined_taxonomy_graphics.pdf")
 
-## Conclusion
+graphics_pdf <- save_taxonomy_graphics(
+  all_results = results$all_results,
+  hist_plot   = hist_plot,
+  pdf_file    = pdf_file,
+  verbose     = TRUE
+)
 
-ClassifyITS produces summary visualizations and tables for every run. A background rate of failed QC is expected.
-Additionally, ClassifyITS is designed to be conservative in its taxonomic assignments, so it is normal for a significant number of OTUs to not receive an assignment at certain taxonomic levels, especially at the species and genus level. The cause for this is generally multiple equally good/likely assingments to a genus/species.
-It is recommended to at manually minimum inspect any fungal OTU that was unassigned at the phylum level.
-See [Inspection] for a complete guide to careful examination of taxonomic assingments.
-
----
+graphics_pdf$pdf_file
+```
 
 ## Display Final Assignments Table
 
-The output initial_assingments.csv will have the following format. The file is named initial assingments to remind users to think carefully about the research question. For example, if you wish to describe fungal diversity in a coral reef, you may want to manually review the unassigned OTUs at the pylum and class level rather than reporting X% of OTUs could not be classied at the phylum level. This is a common practice in microbial ecology when dealing with novel or poorly characterized taxa. The reality is that assigning taxonomy to fungi is computationally challenging as so litle of the fungal trees of life is available in reference databases so any classifying software has to deal with a high number of slightly unclear taxonomic matches. ClassifyITS takes the stance of when in dount, leaving as "Unclassified" and allowing users to inspect the BLAST themselves to make a case by case, phylum by phylum, call. The initial assignments file provides the information needed to make informed decisions about how to handle these cases in your dataset.
+The assignments table returned by the pipeline has the format shown below. If you ran the pipeline with outdir set, the same table is also written to the CSV file path reported in results_written$assignments_file. The file is named initial assingments to remind users to think carefully about the research question.For example, if you wish to describe fungal diversity in a coral reef, you may want to manually review the unassigned OTUs at the phylum and class level rather than reporting X% of OTUs could not be classified at the phylum level. This is a common practice in microbial ecology when dealing with novel or poorly characterized taxa. The reality is that assigning taxonomy to fungi is computationally challenging as so little of the fungal trees of life is available in reference databases so any classifying software has to deal with a high number of slightly unclear taxonomic matches. ClassifyITS takes the stance of when in doubt, leaving as "Unclassified" and allowing users to inspect the BLAST themselves to make a case by case, phylum by phylum, call. The initial assignments file provides the information needed to make informed decisions about how to handle these cases in your dataset.
+
 
 ```{r, echo=FALSE}
 # Show the first 10 rows as a preview in the vignette
-knitr::kable(head(results$all_results, 10))
+knitr::kable(utils::head(results$all_results, 10))
 
 # View the full assignments table interactively (in RStudio)
 # Uncomment the following line to use View in your own R session!
 # View(results$all_results)
 ```
 
-> Tip: To browse the full taxonomy assignment interactively, use `View(results$all_results)` or perhaps `View(head(results$all_results))`in your own R session. This opens the table in a spreadsheet viewer.
+> Tip: To browse the full taxonomy assignment interactively, use `View(results$all_results)` in your own R session
 
 ---
 
 
 ## Conclusion
+ClassifyITS optionally produces summary visualizations and tables for every run. A background rate of failed QC is expected.
+Additionally, ClassifyITS is designed to be conservative in its taxonomic assignments, so it is normal for a significant number of OTUs to not receive an assignment at certain taxonomic levels, especially at the species and genus level. The cause for this is generally multiple equally good/likely assignments to a genus/species.
+It is recommended to at manually minimum inspect any fungal OTU that was unassigned at the phylum level.
+See [Inspection] for a complete guide to careful examination of taxonomic assingments.
 
 Thank you for doing the hard work to continue exploring fungal diversity and its ecological roles! ClassifyITS is designed to be a tool to help you assign taxonomy to your fungal ITS sequences, but it is not a black box. It is important to review the outputs carefully and consider manual curation for unassigned OTUs, especially if they are abundant or of particular interest in downstream analyses. The summary plots and tables generated by ClassifyITS provide a comprehensive overview of the taxonomy assignment process and can help guide your decisions about how to handle unassigned OTUs in your dataset.
 
-See the [README], [custom-cutoffs], [data-preparatrion] and other tabs for more details. 
+See the [README], [custom-cutoffs], [data-preparation] and other tabs for more details. 
+
+
+[README]: https://github.com/qmoon11/ClassifyITS/blob/main/README.md
+[Inspection]: https://github.com/qmoon11/ClassifyITS/blob/main/docs/inspection.md
+[custom-cutoffs]: https://github.com/qmoon11/ClassifyITS/blob/main/docs/custom-cutoffs.md
+[data-preparation]: https://github.com/qmoon11/ClassifyITS/blob/main/docs/data-preparation.md
 

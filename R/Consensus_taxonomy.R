@@ -24,7 +24,7 @@ consensus_taxonomy_assignment <- function(final_table, blast_qc) {
         final_table_consensus[i, rank] <- "Unclassified"
         next
       }
-      top2_hits <- dplyr::arrange(otu_hits, evalue) %>% head(2)
+      top2_hits <- utils::head(dplyr::arrange(otu_hits, evalue), 2)
       top2_vals <- unique(top2_hits[[rank]])
       if (length(top2_vals) == 1 && top2_vals[1] == orig_val) {
         final_table_consensus[i, rank] <- orig_val
@@ -52,9 +52,12 @@ consensus_taxonomy_assignment <- function(final_table, blast_qc) {
 #' @export
 safe_rbind_list <- function(dfs, all_cols = NULL) {
   dfs <- Filter(function(x) !is.null(x) && nrow(x) > 0, dfs)
-  if(length(dfs) == 0) {
+  if (length(dfs) == 0) {
     if (!is.null(all_cols)) {
-      empty <- as.data.frame(matrix(NA_character_, nrow=0, ncol=length(all_cols)), stringsAsFactors=FALSE)
+      empty <- as.data.frame(
+        matrix(NA_character_, nrow = 0, ncol = length(all_cols)),
+        stringsAsFactors = FALSE
+      )
       colnames(empty) <- all_cols
       return(empty)
     } else {
@@ -78,7 +81,7 @@ ensure_cols <- function(df, all_cols) {
     if (!col %in% colnames(df)) df[[col]] <- NA_character_
     df[[col]] <- as.character(df[[col]])
   }
-  df <- df[, all_cols, drop=FALSE]
+  df <- df[, all_cols, drop = FALSE]
   rownames(df) <- NULL
   return(df)
 }
@@ -90,12 +93,14 @@ ensure_cols <- function(df, all_cols) {
 #' @param rep_seqs DNAStringSet or named character vector of rep seqs
 #' @param blast Data frame of all BLAST results
 #' @param blast_filtered Data frame of filtered BLAST results
-#' @param file Path for output CSV
-#' @return Data frame written to CSV (and for downstream analysis)
+#' @param file Path for output CSV. If NULL (default), no file is written.
+#' @param verbose Logical; if TRUE emit a message when a file is written. Default FALSE.
+#' @return Data frame of assignments (written if file is not NULL)
 #' @export
 write_initial_assignments <- function(
     easy_df, consensus_df, rep_seqs, blast, blast_filtered,
-    file = "outputs/initial_assignments.csv"
+    file = NULL,
+    verbose = FALSE
 ) {
   if (!requireNamespace("data.table", quietly = TRUE)) {
     stop("Package 'data.table' is required.")
@@ -112,8 +117,8 @@ write_initial_assignments <- function(
   assigned_otus <- unique(assigned$qseqid)
   
   # 2. Failed BLAST
-  rep_otus    <- names(rep_seqs)
-  blast_otus  <- unique(blast$qseqid)
+  rep_otus <- names(rep_seqs)
+  blast_otus <- unique(blast$qseqid)
   blast_filtered_otus <- unique(blast_filtered$qseqid)
   otus_no_blast <- setdiff(rep_otus, blast_otus)
   df_no_blast <- if (length(otus_no_blast) > 0) {
@@ -135,7 +140,7 @@ write_initial_assignments <- function(
   otus_failed_qc <- setdiff(blast_otus, blast_filtered_otus)
   otus_failed_qc <- setdiff(otus_failed_qc, assigned_otus)
   otus_failed_qc <- setdiff(otus_failed_qc, otus_no_blast)
-  df_failed_qc <- if(length(otus_failed_qc) > 0) {
+  df_failed_qc <- if (length(otus_failed_qc) > 0) {
     data.frame(
       qseqid = otus_failed_qc,
       kingdom = NA_character_,
@@ -162,13 +167,18 @@ write_initial_assignments <- function(
   rownames(all_results) <- NULL
   
   # Guarantee NA for failed rows in taxonomy columns
+  is_fail <- grepl("Failed", all_results$notes)
   for (col in tax_cols) {
-    is_fail <- grepl("Failed", all_results$notes)
     all_results[[col]][is_fail] <- NA_character_
   }
   
-  # Write output
-  data.table::fwrite(all_results, file, sep = ",", na = "NA")
-  message(sprintf("Taxonomy assignments exported to %s", file))
-  return(all_results)
+  # Write output only if requested
+  if (!is.null(file)) {
+    dir_out <- dirname(file)
+    if (!dir.exists(dir_out)) dir.create(dir_out, recursive = TRUE)
+    data.table::fwrite(all_results, file, sep = ",", na = "NA")
+    if (isTRUE(verbose)) message("Taxonomy assignments exported to ", file)
+  }
+  
+  all_results
 }

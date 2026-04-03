@@ -1,3 +1,4 @@
+```r
 #' Check proportion of N bases in each sequence.
 #'
 #' Calculates the proportion of "N" bases (ambiguous bases) in each sequence and flags if above the given threshold.
@@ -24,14 +25,18 @@ check_N <- function(rep_seqs, cutoff = 1) {
   }
   
   n_perc <- vapply(seqs, function(s) {
+    s <- as.character(s)
+    len <- nchar(s)
+    if (is.na(len) || len == 0) return(NA_real_)
     chars <- strsplit(s, "", fixed = TRUE)[[1]]
-    sum(chars == "N") / nchar(s) * 100
+    sum(chars %in% c("N", "n")) / len * 100
   }, numeric(1))
   
   data.frame(
     qseqid = names(seqs),
     N_percent = unname(n_perc),
-    N_flag = unname(n_perc) > cutoff,
+    N_flag = !is.na(n_perc) & (unname(n_perc) > cutoff),
     stringsAsFactors = FALSE
   )
 }
+```

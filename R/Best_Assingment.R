@@ -1,42 +1,46 @@
+```r
 #' Parse taxonomy cutoffs file
 #'
 #' Reads and processes a taxonomy cutoffs CSV for assignment thresholds at various ranks.
 #'
-#' @param cutoffs_file Path to a taxonomy cutoffs CSV file. If not supplied or invalid, attempts to locate the default file in the package. 
-#' @return A list with two elements: \code{long}, a data frame of parsed cutoffs, and \code{ranks}, the vector of taxonomic ranks.
-#' @importFrom magrittr %>%
-#' @importFrom dplyr arrange
+#' @param cutoffs_file Path to a taxonomy cutoffs CSV file. If not supplied or invalid,
+#'   attempts to locate the default file in the package.
+#' @return A list with two elements: \code{long}, a data frame of parsed cutoffs, and
+#'   \code{ranks}, the vector of taxonomic ranks.
+#' @importFrom utils read.csv
 #' @export
 parse_taxonomy_cutoffs <- function(cutoffs_file = NULL) {
-  # Robust path resolution for cutoffs file
+  # Locate cutoffs file (installed package path)
   if (is.null(cutoffs_file) || !file.exists(cutoffs_file)) {
     cutoffs_file <- system.file("extdata", "taxonomy_cutoffs.csv", package = "ClassifyITS")
-    if (!file.exists(cutoffs_file) || nchar(cutoffs_file) == 0) {
-      cutoffs_file <- file.path("inst", "extdata", "taxonomy_cutoffs.csv")
-    }
   }
-  if (!file.exists(cutoffs_file) || nchar(cutoffs_file) == 0) {
+  if (!nzchar(cutoffs_file) || !file.exists(cutoffs_file)) {
     stop("Could not locate taxonomy_cutoffs.csv. Please reinstall the package or supply a custom file.")
   }
-  cutoffs_raw <- read.csv(cutoffs_file, stringsAsFactors = FALSE)
+  
+  cutoffs_raw <- utils::read.csv(cutoffs_file, stringsAsFactors = FALSE)
+  
   tax_ranks <- c("kingdom", "phylum", "class", "order", "family", "genus", "species")
+  
   long_cutoffs <- list()
   for (i in seq_len(nrow(cutoffs_raw))) {
-    r <- cutoffs_raw[i,]
+    r <- cutoffs_raw[i, , drop = FALSE]
     for (rank in tax_ranks) {
-      type <- ifelse(rank %in% c("genus", "species"), "percent_identity", "evalue")
+      type <- if (rank %in% c("genus", "species")) "percent_identity" else "evalue"
+      
       col <- switch(rank,
                     kingdom = "e.value.kingdom",
                     phylum  = "e.value.phylum",
                     class   = "e.value.class",
                     order   = "e.value.order",
                     family  = "e.value.family",
-                    genus   = if(type == "evalue") "e.value.genus" else "per.ident.genus",
+                    genus   = if (type == "evalue") "e.value.genus" else "per.ident.genus",
                     species = "per.ident.species"
       )
+      
       val <- r[[col]]
       if (!is.null(val) && !is.na(val) && val != "") {
-        long_cutoffs[[length(long_cutoffs)+1]] <- data.frame(
+        long_cutoffs[[length(long_cutoffs) + 1]] <- data.frame(
           rank = rank,
           kingdom = r$Kingdom,
           phylum = r$Phylum,
@@ -52,7 +56,25 @@ parse_taxonomy_cutoffs <- function(cutoffs_file = NULL) {
       }
     }
   }
-  cutoffs_long <- do.call(rbind, long_cutoffs)
+  
+  if (length(long_cutoffs) == 0) {
+    cutoffs_long <- data.frame(
+      rank = character(),
+      kingdom = character(),
+      phylum = character(),
+      class = character(),
+      order = character(),
+      family = character(),
+      genus = character(),
+      species = character(),
+      cutoff_type = character(),
+      cutoff_value = character(),
+      stringsAsFactors = FALSE
+    )
+  } else {
+    cutoffs_long <- do.call(rbind, long_cutoffs)
+  }
+  
   list(long = cutoffs_long, ranks = tax_ranks)
 }
 
@@ -96,7 +118,7 @@ best_hit_taxonomy_assignment <- function(blast_qc, cutoffs_long, defaults) {
     if (nrow(hits) == 0) next
     
     # Sort hits by evalue (ascending)
-    hits <- hits[order(as.numeric(hits$evalue)), , drop=FALSE]
+    hits <- hits[order(as.numeric(hits$evalue)), , drop = FALSE]
     best_hit <- as.list(hits[1, ])
     best_evalue <- as.numeric(best_hit$evalue)
     second_hit <- NULL
@@ -116,11 +138,13 @@ best_hit_taxonomy_assignment <- function(blast_qc, cutoffs_long, defaults) {
       
       # Fallback: use second-best hit for this rank if best is undefined and qualifies
       if (is.na(val) || val == "" || val == "Unclassified") {
-        use_second_this_rank <- FALSE
-        if (!is.null(second_hit) && !is.na(second_evalue) && best_evalue > 0 && second_evalue <= best_evalue / 0.6) {
+        if (!is.null(second_hit) &&
+            !is.na(second_evalue) &&
+            best_evalue > 0 &&
+            second_evalue <= best_evalue / 0.6) {
+          
           second_val <- second_hit[[rank]]
           if (!is.na(second_val) && second_val != "" && second_val != "Unclassified") {
-            use_second_this_rank <- TRUE
             val <- second_val
             # For percent_identity, update if genus/species
             if (rank %in% c("genus", "species")) pident <- as.numeric(second_hit$pident)
@@ -132,7 +156,7 @@ best_hit_taxonomy_assignment <- function(blast_qc, cutoffs_long, defaults) {
       if (rank %in% c("genus", "species")) {
         cutoff <- find_cutoff(rank, best_hit, "percent_identity", defaults, cutoffs_long)
         value <- pident
-        if (is.na(val) || val == "" || val == "Unclassified" || is.na(value) || value < cutoff*100) {
+        if (is.na(val) || val == "" || val == "Unclassified" || is.na(value) || value < cutoff * 100) {
           taxonomy[[rank]] <- "Unclassified"
         } else {
           taxonomy[[rank]] <- val
@@ -156,5 +180,7 @@ best_hit_taxonomy_assignment <- function(blast_qc, cutoffs_long, defaults) {
       taxonomy
     )
   }
+  
   as.data.frame(do.call(rbind, lapply(final_assignments, unlist)), stringsAsFactors = FALSE)
 }
+```
