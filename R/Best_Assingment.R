@@ -1,4 +1,3 @@
-```r
 #' Parse taxonomy cutoffs file
 #'
 #' Reads and processes a taxonomy cutoffs CSV for assignment thresholds at various ranks.
@@ -183,4 +182,3 @@ best_hit_taxonomy_assignment <- function(blast_qc, cutoffs_long, defaults) {
   
   as.data.frame(do.call(rbind, lapply(final_assignments, unlist)), stringsAsFactors = FALSE)
 }
-```

@@ -4,21 +4,15 @@
 \alias{easy_assignments}
 \title{Easy taxonomy assignment for OTUs using BLAST QC output & phylum-specific thresholds.}
 \usage{
-easy_assignments(
-  blast_filtered,
-  cutoffs_file = NULL,
-  default_cutoff = 98,
-  package_name = NULL
-)
+easy_assignments(blast_filtered, cutoffs_file = NULL, default_cutoff = 98)
 }
 \arguments{
 \item{blast_filtered}{QC-filtered BLAST dataframe (with parsed taxonomy columns!)}
 
-\item{cutoffs_file}{Path to taxonomy cutoffs CSV file. Defaults to package's "extdata/taxonomy_cutoffs.csv"}
+\item{cutoffs_file}{Path to taxonomy cutoffs CSV file. If not supplied or invalid,
+attempts to locate the default file in the package.}
 
 \item{default_cutoff}{Default percent identity cutoff for species assignment (default: 98)}
-
-\item{package_name}{If using in a package, specify the package name for system.file fallback (default: NULL)}
 }
 \value{
 List with assigned_otus_df and remaining_otus_df

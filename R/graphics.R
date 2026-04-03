@@ -1,4 +1,3 @@
-```r
 #' Save taxonomy summary charts and tables to multi-page PDF
 #'
 #' @param all_results Combined assignments table from write_initial_assignments
@@ -214,4 +213,3 @@ save_taxonomy_graphics <- function(
     final_count_tbl = final_count_tbl
   ))
 }
-```

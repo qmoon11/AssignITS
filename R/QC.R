@@ -1,4 +1,3 @@
-```r
 #' Load and check BLAST results and rep-seq FASTA
 #'
 #' @param blast_file Path to BLAST results TSV file.
@@ -98,4 +97,59 @@ load_and_check <- function(blast_file, rep_fasta, taxonomy_col = "stitle", verbo
   
   list(blast = blast, rep_seqs = rep_seqs)
 }
-```
+
+#' Trim BLAST alignments by minimum length
+#'
+#' @param blast BLAST data frame.
+#' @param rep_seqs Named list/character vector of DNA strings (from seqinr::read.fasta(as.string = TRUE)).
+#' @param fraction Numeric; fraction of the median rep-seq length used as the cutoff. Default 0.6.
+#' @return Filtered BLAST data frame.
+#' @importFrom stats median
+#' @export
+trim_alignments <- function(blast, rep_seqs, fraction = 0.6) {
+  seq_lengths <- nchar(unlist(rep_seqs, use.names = FALSE))
+  cutoff <- stats::median(seq_lengths) * fraction
+  blast[blast$length > cutoff, , drop = FALSE]
+}
+
+#' Create and return alignment length histogram (ggplot object)
+#'
+#' @param blast BLAST data frame.
+#' @param rep_seqs Named list/character vector of DNA strings (from seqinr::read.fasta(as.string = TRUE)).
+#' @param cutoff_fraction Numeric; fraction of median alignment length for cutoff line. Default 0.6.
+#' @return A ggplot object.
+#' @importFrom stats median setNames
+#' @export
+plot_alignment_hist <- function(blast, rep_seqs, cutoff_fraction = 0.6) {
+  median_length <- stats::median(blast$length)
+  cutoff_length <- median_length * cutoff_fraction
+  mean_fasta_length <- mean(nchar(unlist(rep_seqs, use.names = FALSE)))
+  
+  vline_data <- data.frame(
+    x = c(median_length, cutoff_length, mean_fasta_length),
+    label = c("Median BLAST alignment length",
+              "Alignment cutoff applied",
+              "Mean FASTA length"),
+    color = c("red", "green", "purple"),
+    stringsAsFactors = FALSE
+  )
+  
+  ggplot2::ggplot(blast, ggplot2::aes(x = length)) +
+    ggplot2::geom_histogram(bins = 30, fill = "steelblue", color = "black") +
+    ggplot2::geom_vline(
+      data = vline_data,
+      ggplot2::aes(xintercept = x, color = label),
+      linetype = "dashed", linewidth = 1.2, show.legend = TRUE
+    ) +
+    ggplot2::scale_color_manual(
+      name = "Reference line",
+      values = stats::setNames(vline_data$color, vline_data$label)
+    ) +
+    ggplot2::labs(
+      title = "Distribution of alignment lengths",
+      x = "Alignment length (bp)",
+      y = "Count"
+    ) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(legend.position = "top")
+}

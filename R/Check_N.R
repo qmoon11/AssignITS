@@ -1,4 +1,3 @@
-```r
 #' Check proportion of N bases in each sequence.
 #'
 #' Calculates the proportion of "N" bases (ambiguous bases) in each sequence and flags if above the given threshold.
@@ -39,4 +38,3 @@ check_N <- function(rep_seqs, cutoff = 1) {
     stringsAsFactors = FALSE
   )
 }
-```

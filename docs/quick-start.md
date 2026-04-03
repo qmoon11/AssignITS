@@ -1,6 +1,6 @@
 ## Quick Start
 
-Once you have installed the package and Biostrings, and prepared your BLAST results as described in Data Preparation, you can run the assignment pipeline with just a few lines:
+Once you have installed the package, and prepared your BLAST results as described in Data Preparation, you can run the assignment pipeline with just a few lines:
 
     ITS_taxonomy <- ITS_assignment(
         blast_file = "input/blast_results.tsv",            # Path to BLAST .TSV file

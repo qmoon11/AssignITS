@@ -7,9 +7,10 @@
 save_taxonomy_graphics(
   all_results,
   hist_plot,
-  pdf_file = "outputs/combined_taxonomy_graphics.pdf",
+  pdf_file = NULL,
   caption_texts = NULL,
-  rank_names = c("Phylum", "Class", "Order", "Family", "Genus", "Species")
+  rank_names = c("Phylum", "Class", "Order", "Family", "Genus", "Species"),
+  verbose = FALSE
 )
 }
 \arguments{
@@ -17,14 +18,16 @@ save_taxonomy_graphics(
 
 \item{hist_plot}{ggplot2 object for histogram}
 
-\item{pdf_file}{Output path for multi-page PDF}
+\item{pdf_file}{Output path for multi-page PDF. If NULL (default), no file is written.}
 
 \item{caption_texts}{Vector of captions for PDF pages (optional)}
 
 \item{rank_names}{Vector of rank names (default: c("Phylum",...))}
+
+\item{verbose}{Logical; if TRUE, emit a message when a PDF is written. Default FALSE.}
 }
 \value{
-List with pdf_file (invisible)
+List with plots/tables; includes pdf_file when written.
 }
 \description{
 Save taxonomy summary charts and tables to multi-page PDF

@@ -10,7 +10,8 @@ ITS_assignment(
   cutoffs_file = NULL,
   cutoff_fraction = 0.6,
   n_cutoff = 1,
-  outdir = "outputs"
+  outdir = NULL,
+  verbose = FALSE
 )
 }
 \arguments{
@@ -24,11 +25,13 @@ ITS_assignment(
 
 \item{n_cutoff}{Numeric, N base percentage cutoff (default: 1)}
 
-\item{outdir}{Output directory for results (default: "outputs")}
+\item{outdir}{Output directory for results. If NULL (default), nothing is written.}
+
+\item{verbose}{Logical; if TRUE emit progress messages. Default FALSE.}
 }
 \value{
-Named list of results and output file paths
+Named list of results and (if written) output file paths
 }
 \description{
-Runs all steps: QC, filtering, plotting, assignments, writes outputs.
+Runs all steps: QC, filtering, plotting, assignments; optionally writes outputs.
 }

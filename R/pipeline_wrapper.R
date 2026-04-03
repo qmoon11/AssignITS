@@ -1,4 +1,3 @@
-```r
 #' Complete Fungal Assignment Pipeline
 #'
 #' Runs all steps: QC, filtering, plotting, assignments; optionally writes outputs.
@@ -104,4 +103,3 @@ ITS_assignment <- function(
     pdf_file = pdf_file
   ))
 }
-```

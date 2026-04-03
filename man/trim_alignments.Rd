@@ -4,17 +4,17 @@
 \alias{trim_alignments}
 \title{Trim BLAST alignments by minimum length}
 \usage{
-trim_alignments(blast, rep_seqs, fraction = NULL)
+trim_alignments(blast, rep_seqs, fraction = 0.6)
 }
 \arguments{
-\item{blast}{BLAST dataframe.}
+\item{blast}{BLAST data frame.}
 
-\item{rep_seqs}{Named list of DNA strings (from \code{seqinr::read.fasta(as.string = TRUE)}).}
+\item{rep_seqs}{Named list/character vector of DNA strings (from seqinr::read.fasta(as.string = TRUE)).}
 
-\item{fraction}{Numeric fraction of median rep-seq length (if NULL, defaults to 0.6).}
+\item{fraction}{Numeric; fraction of the median rep-seq length used as the cutoff. Default 0.6.}
 }
 \value{
-Filtered BLAST dataframe.
+Filtered BLAST data frame.
 }
 \description{
 Trim BLAST alignments by minimum length
