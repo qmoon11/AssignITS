@@ -48,7 +48,7 @@ ITS_assignment <- function(
   N_check <- check_N(rep_seqs, cutoff = n_cutoff)
   n_fail_otus <- N_check$qseqid[N_check$N_flag]
   
-  # Step 4: Warn if any OTUs failed QC
+  # Step 4: Warn if any OTUs failed QC (no/poor BLAST results)
   total_otus <- length(names(rep_seqs))
   qc_pass <- blast_all$qseqid
   failed_otus <- setdiff(names(rep_seqs), qc_pass)
@@ -66,10 +66,34 @@ ITS_assignment <- function(
   # Step 6: Easy assignments
   easy_results <- easy_assignments(blast_filtered, cutoffs_file = cutoffs_file)
   easy_assignments_df <- easy_results$assigned_otus_df
-  remaining_otus_df <- easy_results$remaining_otus_df
+  remaining_otus_df <- easy_results$remaining_otus_df  # BLAST hits for unassigned OTUs
   
-  # Step 7: Consensus assignment for remaining
-  consensus_assignments_df <- consensus_taxonomy_assignment(remaining_otus_df, blast_filtered)
+  # Step 7: Best-hit assignment + consensus demotion for remaining OTUs
+  if (nrow(remaining_otus_df) == 0) {
+    consensus_assignments_df <- data.frame(
+      qseqid  = character(),
+      kingdom = character(),
+      phylum  = character(),
+      class   = character(),
+      order   = character(),
+      family  = character(),
+      genus   = character(),
+      species = character(),
+      stringsAsFactors = FALSE
+    )
+  } else {
+    cutoffs_long <- parse_taxonomy_cutoffs(cutoffs_file)$long
+    
+    best_assignments_df <- best_hit_taxonomy_assignment(
+      blast_qc = remaining_otus_df,
+      cutoffs_long = cutoffs_long
+    )
+    
+    consensus_assignments_df <- consensus_taxonomy_assignment(
+      final_table = best_assignments_df,
+      blast_qc = remaining_otus_df
+    )
+  }
   
   # Step 8: Final output CSV table (write only if requested)
   all_results <- write_initial_assignments(
@@ -97,6 +121,8 @@ ITS_assignment <- function(
     N_check = N_check,
     n_fail_otus = n_fail_otus,
     easy_assignments_df = easy_assignments_df,
+    remaining_otus_df = remaining_otus_df,
+    best_assignments_df = if (exists("best_assignments_df")) best_assignments_df else NULL,
     consensus_assignments_df = consensus_assignments_df,
     all_results = all_results,
     assignments_file = assignments_file,

@@ -91,17 +91,15 @@ parse_taxonomy_cutoffs <- function(cutoffs_file = NULL) {
 #' For each rank, if the best e-value hit is undefined and the second-best hit is defined
 #' and at least 60% as good, use the second-best hit's value for that rank.
 #'
+#' Defaults are taken from the cutoffs table itself (Fungi baseline rules), not from a separate defaults list.
+#'
 #' @param blast_qc A data.frame of BLAST results for query sequences. Must include qseqid,
 #'   evalue, pident, length, and taxonomy columns: kingdom/phylum/class/order/family/genus/species.
 #' @param cutoffs_long Long-form cutoffs (parse_taxonomy_cutoffs()$long).
-#' @param defaults Named list of default cutoff values. Required names:
-#'   - kingdom/phylum/class/order/family: evalue defaults
-#'   - species: percent_identity default
-#'   - genus_evalue and/or genus_percent_identity defaults (see genus_cutoff_mode)
 #' @param genus_cutoff_mode One of: "prefer_evalue", "prefer_pident", "both".
 #' @return A data.frame containing hierarchical taxonomy assignment for each query sequence.
 #' @export
-best_hit_taxonomy_assignment <- function(blast_qc, cutoffs_long, defaults,
+best_hit_taxonomy_assignment <- function(blast_qc, cutoffs_long,
                                          genus_cutoff_mode = c("prefer_evalue", "prefer_pident", "both")) {
   genus_cutoff_mode <- match.arg(genus_cutoff_mode)
   
@@ -110,18 +108,18 @@ best_hit_taxonomy_assignment <- function(blast_qc, cutoffs_long, defaults,
   # FIXED fallback threshold: "second is at least 60% as good" => allow up to 1/0.6 ≈ 1.6667x worse e-value
   F <- 1 / 0.6  # 1.6666667
   
-  # helper to parse e-notation like "e-50" -> 1e-50
   parse_cutoff_numeric <- function(cv) {
     n <- suppressWarnings(as.numeric(cv))
     if (is.na(n) && is.character(cv) && grepl("^e-", cv)) n <- as.numeric(sub("^e-", "1e-", cv))
     n
   }
   
-  # find most specific matching cutoff for rank+type and hit lineage
-  find_cutoff <- function(rank, hit, type, defaults, cutoffs_long) {
+  # Find the most specific cutoff; if none matches, fall back to the "Fungi baseline" rule for that rank/type.
+  find_cutoff <- function(rank, hit, type, cutoffs_long) {
     match_order <- tax_ranks
     sel <- cutoffs_long[cutoffs_long$rank == rank & cutoffs_long$cutoff_type == type, , drop = FALSE]
     
+    # 1) most-specific match first
     for (lev in seq(length(match_order), 1)) {
       tmp_sel <- sel
       for (m in seq_len(lev)) {
@@ -132,11 +130,24 @@ best_hit_taxonomy_assignment <- function(blast_qc, cutoffs_long, defaults,
       if (nrow(tmp_sel) > 0) return(parse_cutoff_numeric(tmp_sel$cutoff_value[1]))
     }
     
-    key <- if (rank == "genus") paste0("genus_", type) else rank
-    defaults[[key]]
+    # 2) fallback: Fungi baseline (kingdom == Fungi; other lineage fields blank/NA)
+    fungi_sel <- sel[
+      (is.na(sel$kingdom) | sel$kingdom == "" | sel$kingdom == "Fungi") &
+        (is.na(sel$phylum)  | sel$phylum  == "") &
+        (is.na(sel$class)   | sel$class   == "") &
+        (is.na(sel$order)   | sel$order   == "") &
+        (is.na(sel$family)  | sel$family  == "") &
+        (is.na(sel$genus)   | sel$genus   == "") &
+        (is.na(sel$species) | sel$species == ""),
+      , drop = FALSE
+    ]
+    if (nrow(fungi_sel) > 0) return(parse_cutoff_numeric(fungi_sel$cutoff_value[1]))
+    
+    # 3) no rule found
+    NA_real_
   }
   
-  # detect whether ANY matching cutoff exists (vs. falling back to default)
+  # detect whether ANY matching cutoff exists (not using fallback)
   has_matching_cutoff <- function(rank, hit, type, cutoffs_long) {
     match_order <- tax_ranks
     sel <- cutoffs_long[cutoffs_long$rank == rank & cutoffs_long$cutoff_type == type, , drop = FALSE]
@@ -168,8 +179,8 @@ best_hit_taxonomy_assignment <- function(blast_qc, cutoffs_long, defaults,
     best_hit   <- as.list(hits[1, ])
     second_hit <- if (nrow(hits) > 1) as.list(hits[2, ]) else NULL
     
-    best_e <- best_hit$evalue_num
-    sec_e  <- if (!is.null(second_hit)) suppressWarnings(as.numeric(second_hit$evalue)) else NA_real_
+    best_e <- hits$evalue_num[1]
+    sec_e  <- if (nrow(hits) > 1) hits$evalue_num[2] else NA_real_
     
     taxonomy <- list()
     
@@ -178,13 +189,12 @@ best_hit_taxonomy_assignment <- function(blast_qc, cutoffs_long, defaults,
       hit_for_rank <- best_hit
       val <- hit_for_rank[[rank]]
       
-      # fallback to second hit if best has undefined label and second is within F-fold of best (fixed)
+      # fallback to second hit if best has undefined label and second is within F-fold of best
       if (is.na(val) || val == "" || val == "Unclassified") {
         if (!is.null(second_hit) && is.finite(sec_e)) {
           qualifies <- if (is.finite(best_e) && best_e > 0) {
             sec_e <= best_e * F
           } else {
-            # if best is 0, only allow second if also 0
             is.finite(best_e) && best_e == 0 && sec_e == 0
           }
           
@@ -200,9 +210,10 @@ best_hit_taxonomy_assignment <- function(blast_qc, cutoffs_long, defaults,
       
       # apply cutoffs using hit_for_rank
       if (rank == "species") {
-        cutoff <- find_cutoff("species", hit_for_rank, "percent_identity", defaults, cutoffs_long)
+        cutoff <- find_cutoff("species", hit_for_rank, "percent_identity", cutoffs_long)
         pid <- suppressWarnings(as.numeric(hit_for_rank$pident))
-        taxonomy[[rank]] <- if (is.na(val) || val == "" || val == "Unclassified" || is.na(pid) || pid < cutoff * 100) "Unclassified" else val
+        taxonomy[[rank]] <- if (is.na(val) || val == "" || val == "Unclassified" ||
+                                is.na(pid) || is.na(cutoff) || pid < cutoff * 100) "Unclassified" else val
         
       } else if (rank == "genus") {
         pid <- suppressWarnings(as.numeric(hit_for_rank$pident))
@@ -223,11 +234,11 @@ best_hit_taxonomy_assignment <- function(blast_qc, cutoffs_long, defaults,
         pass_pi <- TRUE
         
         if (use_e) {
-          cutoff_e <- find_cutoff("genus", hit_for_rank, "evalue", defaults, cutoffs_long)
+          cutoff_e <- find_cutoff("genus", hit_for_rank, "evalue", cutoffs_long)
           pass_e <- !(is.na(ev) || is.na(cutoff_e) || ev > cutoff_e)
         }
         if (use_pi) {
-          cutoff_pi <- find_cutoff("genus", hit_for_rank, "percent_identity", defaults, cutoffs_long)
+          cutoff_pi <- find_cutoff("genus", hit_for_rank, "percent_identity", cutoffs_long)
           pass_pi <- !(is.na(pid) || is.na(cutoff_pi) || pid < cutoff_pi * 100)
         }
         
@@ -235,9 +246,10 @@ best_hit_taxonomy_assignment <- function(blast_qc, cutoffs_long, defaults,
         taxonomy[[rank]] <- if (is.na(val) || val == "" || val == "Unclassified" || !pass) "Unclassified" else val
         
       } else {
-        cutoff <- find_cutoff(rank, hit_for_rank, "evalue", defaults, cutoffs_long)
+        cutoff <- find_cutoff(rank, hit_for_rank, "evalue", cutoffs_long)
         ev <- suppressWarnings(as.numeric(hit_for_rank$evalue))
-        taxonomy[[rank]] <- if (is.na(val) || val == "" || val == "Unclassified" || is.na(ev) || ev > cutoff) "Unclassified" else val
+        taxonomy[[rank]] <- if (is.na(val) || val == "" || val == "Unclassified" ||
+                                is.na(ev) || is.na(cutoff) || ev > cutoff) "Unclassified" else val
       }
     }
     

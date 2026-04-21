@@ -7,7 +7,6 @@
 best_hit_taxonomy_assignment(
   blast_qc,
   cutoffs_long,
-  defaults,
   genus_cutoff_mode = c("prefer_evalue", "prefer_pident", "both")
 )
 }
@@ -16,11 +15,6 @@ best_hit_taxonomy_assignment(
 evalue, pident, length, and taxonomy columns: kingdom/phylum/class/order/family/genus/species.}
 
 \item{cutoffs_long}{Long-form cutoffs (parse_taxonomy_cutoffs()$long).}
-
-\item{defaults}{Named list of default cutoff values. Required names:
-- kingdom/phylum/class/order/family: evalue defaults
-- species: percent_identity default
-- genus_evalue and/or genus_percent_identity defaults (see genus_cutoff_mode)}
 
 \item{genus_cutoff_mode}{One of: "prefer_evalue", "prefer_pident", "both".}
 }
@@ -31,4 +25,7 @@ A data.frame containing hierarchical taxonomy assignment for each query sequence
 Pass ONLY those OTUs that haven't been assigned already!
 For each rank, if the best e-value hit is undefined and the second-best hit is defined
 and at least 60% as good, use the second-best hit's value for that rank.
+}
+\details{
+Defaults are taken from the cutoffs table itself (Fungi baseline rules), not from a separate defaults list.
 }
