@@ -4,14 +4,25 @@
 \alias{best_hit_taxonomy_assignment}
 \title{Hierarchical best-hit taxonomy assignment with per-rank fallback rule}
 \usage{
-best_hit_taxonomy_assignment(blast_qc, cutoffs_long, defaults)
+best_hit_taxonomy_assignment(
+  blast_qc,
+  cutoffs_long,
+  defaults,
+  genus_cutoff_mode = c("prefer_evalue", "prefer_pident", "both")
+)
 }
 \arguments{
-\item{blast_qc}{A data.frame of BLAST results for query sequences, must include columns for taxonomic ranks and alignment statistics.}
+\item{blast_qc}{A data.frame of BLAST results for query sequences. Must include qseqid,
+evalue, pident, length, and taxonomy columns: kingdom/phylum/class/order/family/genus/species.}
 
-\item{cutoffs_long}{A data.frame specifying per-rank cutoffs for assignment. Must include columns 'rank', 'cutoff_type', and 'cutoff_value'.}
+\item{cutoffs_long}{Long-form cutoffs (parse_taxonomy_cutoffs()$long).}
 
-\item{defaults}{A named list of default cutoff values for each rank, used as fallback if no matching cutoff found.}
+\item{defaults}{Named list of default cutoff values. Required names:
+- kingdom/phylum/class/order/family: evalue defaults
+- species: percent_identity default
+- genus_evalue and/or genus_percent_identity defaults (see genus_cutoff_mode)}
+
+\item{genus_cutoff_mode}{One of: "prefer_evalue", "prefer_pident", "both".}
 }
 \value{
 A data.frame containing hierarchical taxonomy assignment for each query sequence.
