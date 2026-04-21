@@ -9,6 +9,12 @@ consensus_taxonomy_assignment <- function(final_table, blast_qc) {
   tax_ranks <- c("kingdom", "phylum", "class", "order", "family", "genus", "species")
   final_table_consensus <- final_table
   
+  norm_val <- function(x) {
+    x <- trimws(as.character(x))
+    x[is.na(x) | x == "" | tolower(x) == "unclassified"] <- "Unclassified"
+    x
+  }
+  
   for (i in seq_len(nrow(final_table))) {
     otu_id <- final_table$qseqid[i]
     otu_hits <- blast_qc[blast_qc$qseqid == otu_id, , drop = FALSE]
@@ -16,39 +22,65 @@ consensus_taxonomy_assignment <- function(final_table, blast_qc) {
     
     # ensure numeric e-value ordering for "top 2" rule
     otu_hits$evalue_num <- suppressWarnings(as.numeric(otu_hits$evalue))
+    otu_hits <- otu_hits[order(otu_hits$evalue_num, na.last = TRUE), , drop = FALSE]
     
-    for (rank in tax_ranks) {
-      # scalar value (avoid 1-col data.frame behavior)
-      orig_val <- final_table[[rank]][i]
+    # ---- Gate: compare BEST vs SECOND; only if disagreement do consensus ----
+    run_consensus <- FALSE
+    if (nrow(otu_hits) >= 2) {
+      best_hit   <- otu_hits[1, , drop = FALSE]
+      second_hit <- otu_hits[2, , drop = FALSE]
       
-      if (is.na(orig_val) || orig_val == "" || orig_val == "Unclassified") {
+      assigned_vals <- norm_val(final_table[i, tax_ranks, drop = TRUE])
+      classified_ranks <- tax_ranks[assigned_vals != "Unclassified"]
+      
+      if (length(classified_ranks) > 0) {
+        for (rank in classified_ranks) {
+          if (norm_val(best_hit[[rank]]) != norm_val(second_hit[[rank]])) {
+            run_consensus <- TRUE
+            break
+          }
+        }
+      }
+    }
+    
+    # if no disagreement (or no 2nd hit), keep original row unchanged
+    if (!run_consensus) next
+    
+    # ---- Per-rank consensus demotion (top2 agreement OR majority vote) ----
+    for (rank in tax_ranks) {
+      orig_val <- norm_val(final_table[[rank]][i])
+      
+      if (orig_val == "Unclassified") {
         final_table_consensus[[rank]][i] <- "Unclassified"
         next
       }
       
-      ranks_vector <- otu_hits[[rank]]
-      ranks_vector <- ranks_vector[ranks_vector != "" & !is.na(ranks_vector) & ranks_vector != "Unclassified"]
+      ranks_vector <- norm_val(otu_hits[[rank]])
+      ranks_vector <- ranks_vector[ranks_vector != "Unclassified"]
       
       if (length(ranks_vector) == 0) {
         final_table_consensus[[rank]][i] <- "Unclassified"
         next
       }
       
-      top2_hits <- utils::head(dplyr::arrange(otu_hits, evalue_num), 2)
-      top2_vals <- unique(top2_hits[[rank]])
+      # top2 agree at this rank AND match original
+      if (nrow(otu_hits) >= 2) {
+        top2_vals <- norm_val(otu_hits[1:2, rank, drop = TRUE])
+        if (length(top2_vals) == 2 && length(unique(top2_vals)) == 1 && top2_vals[1] == orig_val) {
+          final_table_consensus[[rank]][i] <- orig_val
+          next
+        }
+      }
       
-      if (length(top2_vals) == 1 && top2_vals[1] == orig_val) {
+      # majority (>50%) among defined hits matches original
+      val_tab <- table(ranks_vector)
+      max_ratio <- max(val_tab) / sum(val_tab)
+      majority_val <- names(val_tab)[which.max(val_tab)]
+      
+      if (max_ratio > 0.5 && majority_val == orig_val) {
         final_table_consensus[[rank]][i] <- orig_val
       } else {
-        val_tab <- table(ranks_vector)
-        majority_val <- names(val_tab)[which.max(val_tab)]
-        max_ratio <- max(val_tab) / sum(val_tab)
-        
-        if (max_ratio > 0.5 && majority_val == orig_val) {
-          final_table_consensus[[rank]][i] <- orig_val
-        } else {
-          final_table_consensus[[rank]][i] <- "Unclassified"
-        }
+        final_table_consensus[[rank]][i] <- "Unclassified"
       }
     }
   }

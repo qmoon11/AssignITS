@@ -29,6 +29,7 @@ easy_assignments <- function(
   cutoffs_data <- parse_taxonomy_cutoffs(cutoffs_file)$long
   phylum_species_cutoff <- cutoffs_data[
     cutoffs_data$rank == "species" & cutoffs_data$cutoff_type == "percent_identity",
+    , drop = FALSE
   ]
   phylum_species_cutoff_vec <- stats::setNames(
     as.numeric(phylum_species_cutoff$cutoff_value),
