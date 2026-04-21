@@ -18,7 +18,18 @@ AssignITS is based on taxonomic cutoff criteria from "The Global Soil Mycobiome 
 ---
 ## Installation
 
-Download and install ClassifyITS directly from GitHub using the `devtools` package in R:
+Download and install ClassifyITS directly from CRAN:
+
+```r
+# Install if you don't have it yet
+install.packages("ClassifyITS")
+
+
+# Load the package
+library(ClassifyITS)
+```
+
+Optional: Download and install ClassifyITS directly from GitHub using the `devtools` package in R:
 
 ```r
 # Install devtools if you don't have it yet
@@ -30,6 +41,7 @@ devtools::install_github("qmoon11/ClassifyITS")
 # Load the package
 library(ClassifyITS)
 ```
+
 ---
 
 ## Documentation & User Guides

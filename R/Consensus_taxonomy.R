@@ -8,38 +8,51 @@
 consensus_taxonomy_assignment <- function(final_table, blast_qc) {
   tax_ranks <- c("kingdom", "phylum", "class", "order", "family", "genus", "species")
   final_table_consensus <- final_table
+  
   for (i in seq_len(nrow(final_table))) {
     otu_id <- final_table$qseqid[i]
-    otu_hits <- blast_qc[blast_qc$qseqid == otu_id, ]
+    otu_hits <- blast_qc[blast_qc$qseqid == otu_id, , drop = FALSE]
     if (nrow(otu_hits) == 0) next
+    
+    # ensure numeric e-value ordering for "top 2" rule
+    otu_hits$evalue_num <- suppressWarnings(as.numeric(otu_hits$evalue))
+    
     for (rank in tax_ranks) {
-      orig_val <- final_table[i, rank]
-      if (orig_val == "Unclassified" || orig_val == "" || is.na(orig_val)) {
-        final_table_consensus[i, rank] <- "Unclassified"
+      # scalar value (avoid 1-col data.frame behavior)
+      orig_val <- final_table[[rank]][i]
+      
+      if (is.na(orig_val) || orig_val == "" || orig_val == "Unclassified") {
+        final_table_consensus[[rank]][i] <- "Unclassified"
         next
       }
+      
       ranks_vector <- otu_hits[[rank]]
       ranks_vector <- ranks_vector[ranks_vector != "" & !is.na(ranks_vector) & ranks_vector != "Unclassified"]
+      
       if (length(ranks_vector) == 0) {
-        final_table_consensus[i, rank] <- "Unclassified"
+        final_table_consensus[[rank]][i] <- "Unclassified"
         next
       }
-      top2_hits <- utils::head(dplyr::arrange(otu_hits, evalue), 2)
+      
+      top2_hits <- utils::head(dplyr::arrange(otu_hits, evalue_num), 2)
       top2_vals <- unique(top2_hits[[rank]])
+      
       if (length(top2_vals) == 1 && top2_vals[1] == orig_val) {
-        final_table_consensus[i, rank] <- orig_val
+        final_table_consensus[[rank]][i] <- orig_val
       } else {
         val_tab <- table(ranks_vector)
         majority_val <- names(val_tab)[which.max(val_tab)]
         max_ratio <- max(val_tab) / sum(val_tab)
+        
         if (max_ratio > 0.5 && majority_val == orig_val) {
-          final_table_consensus[i, rank] <- orig_val
+          final_table_consensus[[rank]][i] <- orig_val
         } else {
-          final_table_consensus[i, rank] <- "Unclassified"
+          final_table_consensus[[rank]][i] <- "Unclassified"
         }
       }
     }
   }
+  
   final_table_consensus
 }
 
