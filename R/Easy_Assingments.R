@@ -43,8 +43,28 @@ easy_assignments <- function(
     x
   }
   
+  # NEW: safe extractor so missing columns never create length-0 values
+  best_vals_from_row <- function(row, ranks) {
+    out <- vector("list", length(ranks))
+    names(out) <- ranks
+    for (r in ranks) {
+      if (r %in% names(row)) {
+        v <- row[[r]]
+        out[[r]] <- if (length(v) == 0) "Unclassified" else norm_val(v)[1]
+      } else {
+        out[[r]] <- "Unclassified"
+      }
+    }
+    out
+  }
+  
+  # UPDATED: treat missing/length-0 as not assigned (prevents vapply error)
   fully_assigned <- function(vals) {
-    all(vapply(taxonomic_levels, function(r) norm_val(vals[[r]]) != "Unclassified", logical(1)))
+    all(vapply(taxonomic_levels, function(r) {
+      v <- vals[[r]]
+      if (length(v) == 0) return(FALSE)
+      norm_val(v)[1] != "Unclassified"
+    }, logical(1)))
   }
   
   family_supported <- function(hits_sorted) {
@@ -119,7 +139,7 @@ easy_assignments <- function(
       
       if (!family_supported(hits995)) next
       
-      best_vals <- as.list(norm_val(best_hit[, taxonomic_levels, drop = FALSE]))
+      best_vals <- best_vals_from_row(best_hit, taxonomic_levels)
       if (!fully_assigned(best_vals)) next
       
       # No other >=99.5 hit may disagree at ANY rank
@@ -149,7 +169,7 @@ easy_assignments <- function(
     # best must be >= 0.5% better than second
     if (best_hit$pident_num < (second_hit$pident_num + 0.5)) next
     
-    best_vals <- as.list(norm_val(best_hit[, taxonomic_levels, drop = FALSE]))
+    best_vals <- best_vals_from_row(best_hit, taxonomic_levels)
     
     ranks_to_check <- c("kingdom","phylum","class","order","family","genus")
     best_second_agree_k2g <- TRUE
