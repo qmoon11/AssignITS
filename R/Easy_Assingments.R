@@ -3,7 +3,7 @@
 #' @param blast_filtered QC-filtered BLAST dataframe (with parsed taxonomy columns!)
 #' @param cutoffs_file Path to taxonomy cutoffs CSV file. If not supplied or invalid,
 #'   attempts to locate the default file in the package.
-#' @param default_cutoff Default percent identity cutoff for species assignment (default: 98)
+#' @param default_cutoff Default percent identity cutoff (kept for API compatibility)
 #' @return List with assigned_otus_df and remaining_otus_df
 #' @importFrom stats setNames
 #' @export
@@ -18,7 +18,7 @@ easy_assignments <- function(
   easy_otus <- character()
   all_otus <- unique(blast_filtered$qseqid)
   
-  # Locate cutoffs file (installed package path)
+  # Locate cutoffs file (installed package path) [kept for compatibility]
   if (is.null(cutoffs_file) || !file.exists(cutoffs_file)) {
     cutoffs_file <- system.file("extdata", "taxonomy_cutoffs.csv", package = "ClassifyITS")
   }
@@ -26,6 +26,7 @@ easy_assignments <- function(
     stop("Could not locate taxonomy_cutoffs.csv. Please reinstall the package or supply a custom file.")
   }
   
+  # Kept: read cutoffs (even if not used by the new decision rules)
   cutoffs_data <- parse_taxonomy_cutoffs(cutoffs_file)$long
   phylum_species_cutoff <- cutoffs_data[
     cutoffs_data$rank == "species" & cutoffs_data$cutoff_type == "percent_identity",
@@ -36,124 +37,135 @@ easy_assignments <- function(
     phylum_species_cutoff$phylum
   )
   
-  # --- STEP 1: Assign easy OTUs (100% identity, kingdom Fungi, matching rules)
-  for (otu in all_otus) {
-    hits <- blast_filtered[blast_filtered$qseqid == otu & as.numeric(blast_filtered$pident) == 100, ]
-    if (nrow(hits) == 0) next
-    fungi_hits <- hits[tolower(hits$kingdom) == "fungi", ]
-    if (nrow(fungi_hits) == 0) next
+  norm_val <- function(x) {
+    x <- trimws(as.character(x))
+    x[is.na(x) | x == "" | tolower(x) == "unclassified"] <- "Unclassified"
+    x
+  }
+  
+  fully_assigned <- function(vals) {
+    all(vapply(taxonomic_levels, function(r) norm_val(vals[[r]]) != "Unclassified", logical(1)))
+  }
+  
+  family_supported <- function(hits_sorted) {
+    fam <- norm_val(hits_sorted$family)
+    fam_def <- fam[fam != "Unclassified"]
+    if (length(fam_def) == 0) return(FALSE)
     
-    if (nrow(fungi_hits) == 1) {
-      taxonomy <- as.list(fungi_hits[1, taxonomic_levels])
-      taxonomy$qseqid <- otu
-      assigned_otus[[otu]] <- taxonomy
+    if (nrow(hits_sorted) >= 2) {
+      top2 <- fam[1:2]
+      if (all(top2 != "Unclassified") && length(unique(top2)) == 1) return(TRUE)
+    }
+    
+    tab <- table(fam_def)
+    (max(tab) / sum(tab)) > 0.5
+  }
+  
+  consensus_to_best <- function(hits_sorted, best_vals) {
+    out <- best_vals
+    for (r in taxonomic_levels) {
+      orig <- best_vals[[r]]
+      if (orig == "Unclassified") {
+        out[[r]] <- "Unclassified"
+        next
+      }
+      
+      v <- norm_val(hits_sorted[[r]])
+      v <- v[v != "Unclassified"]
+      if (length(v) == 0) {
+        out[[r]] <- "Unclassified"
+        next
+      }
+      
+      if (nrow(hits_sorted) >= 2) {
+        top2 <- norm_val(hits_sorted[1:2, r, drop = TRUE])
+        if (all(top2 != "Unclassified") && length(unique(top2)) == 1 && top2[1] == orig) {
+          out[[r]] <- orig
+          next
+        }
+      }
+      
+      tab <- table(v)
+      maj <- names(tab)[which.max(tab)]
+      if ((max(tab) / sum(tab)) > 0.5 && maj == orig) {
+        out[[r]] <- orig
+      } else {
+        out[[r]] <- "Unclassified"
+      }
+    }
+    out
+  }
+  
+  # --- Assignment loop over OTUs (Category A/B rules) ---
+  for (otu in all_otus) {
+    otu_hits_all <- blast_filtered[blast_filtered$qseqid == otu, , drop = FALSE]
+    if (nrow(otu_hits_all) == 0) next
+    
+    # fungi-only for easy assignment logic
+    otu_hits <- otu_hits_all[tolower(otu_hits_all$kingdom) == "fungi", , drop = FALSE]
+    if (nrow(otu_hits) == 0) next
+    
+    otu_hits$evalue_num <- suppressWarnings(as.numeric(otu_hits$evalue))
+    otu_hits$pident_num <- suppressWarnings(as.numeric(otu_hits$pident))
+    otu_hits <- otu_hits[order(otu_hits$evalue_num, na.last = TRUE), , drop = FALSE]
+    
+    best_hit <- otu_hits[1, , drop = FALSE]
+    
+    # ---------- Category A: any 100% hits ----------
+    hits100 <- otu_hits[!is.na(otu_hits$pident_num) & otu_hits$pident_num == 100, , drop = FALSE]
+    if (nrow(hits100) > 0) {
+      hits995 <- otu_hits[!is.na(otu_hits$pident_num) & otu_hits$pident_num >= 99.5, , drop = FALSE]
+      hits995 <- hits995[order(hits995$evalue_num, na.last = TRUE), , drop = FALSE]
+      
+      if (!family_supported(hits995)) next
+      
+      best_vals <- as.list(norm_val(best_hit[, taxonomic_levels, drop = FALSE]))
+      if (!fully_assigned(best_vals)) next
+      
+      # No other >=99.5 hit may disagree at ANY rank
+      any_disagree <- FALSE
+      if (nrow(hits995) > 1) {
+        others <- hits995[-1, , drop = FALSE]
+        for (r in taxonomic_levels) {
+          other_vals <- norm_val(others[[r]])
+          if (any(other_vals != best_vals[[r]])) { any_disagree <- TRUE; break }
+        }
+      }
+      if (any_disagree) next
+      
+      best_vals$qseqid <- otu
+      assigned_otus[[otu]] <- best_vals
       easy_otus <- c(easy_otus, otu)
       next
     }
     
-    other_levels <- taxonomic_levels[1:6]
-    ref_tax <- as.character(fungi_hits[1, other_levels])
-    all_other_same <- all(apply(
-      fungi_hits[, other_levels, drop = FALSE],
-      1,
-      function(vals) all(as.character(vals) == ref_tax)
-    ))
+    # ---------- Category B: no 100% hits ----------
+    if (is.na(best_hit$pident_num) || best_hit$pident_num < 98.5) next
+    if (nrow(otu_hits) < 2) next
     
-    unique_species <- unique(fungi_hits$species)
-    unique_species <- unique_species[!is.na(unique_species) & unique_species != "Unclassified" & unique_species != ""]
+    second_hit <- otu_hits[2, , drop = FALSE]
+    if (is.na(second_hit$pident_num)) next
     
-    if (all_other_same) {
-      if (length(unique_species) == 1) {
-        taxonomy <- as.list(fungi_hits[1, taxonomic_levels])
-        taxonomy$qseqid <- otu
-        assigned_otus[[otu]] <- taxonomy
-        easy_otus <- c(easy_otus, otu)
-      } else if (length(unique_species) > 1) {
-        taxonomy <- as.list(fungi_hits[1, other_levels])
-        taxonomy$species <- "Unclassified"
-        taxonomy$qseqid <- otu
-        assigned_otus[[otu]] <- taxonomy
-        easy_otus <- c(easy_otus, otu)
-      }
-    }
-    # If other ranks differ, skip assignment for now
-  }
-  
-  remaining_otus <- setdiff(all_otus, easy_otus)
-  
-  # --- STEP 2: Assign using best evalue & phylum-specific percent cutoff
-  for (otu in remaining_otus) {
-    otu_hits <- blast_filtered[blast_filtered$qseqid == otu, ]
-    if (nrow(otu_hits) == 0) next
+    # best must be >= 0.5% better than second
+    if (best_hit$pident_num < (second_hit$pident_num + 0.5)) next
     
-    best_hit_idx <- which.min(as.numeric(otu_hits$evalue))
-    best_hit <- otu_hits[best_hit_idx, ]
-    if (tolower(best_hit$kingdom) != "fungi") next
+    best_vals <- as.list(norm_val(best_hit[, taxonomic_levels, drop = FALSE]))
     
-    phylum_val <- best_hit$phylum
-    cutoff <- if (!is.na(phylum_species_cutoff_vec[phylum_val])) phylum_species_cutoff_vec[phylum_val] else default_cutoff
-    
-    high_hits <- otu_hits[as.numeric(otu_hits$pident) >= cutoff, ]
-    if (nrow(high_hits) == 0) next
-    
-    genus_check <- function(hit, others) {
-      if (nrow(others) == 0) return(TRUE)
-      all_genus_disagree <- all(
-        others$genus != hit$genus |
-          is.na(others$genus) |
-          others$genus == "Unclassified" |
-          others$genus == ""
-      )
-      !all_genus_disagree
+    ranks_to_check <- c("kingdom","phylum","class","order","family","genus")
+    best_second_agree_k2g <- TRUE
+    for (r in ranks_to_check) {
+      if (best_vals[[r]] == "Unclassified") { best_second_agree_k2g <- FALSE; break }
+      if (norm_val(best_hit[[r]]) != norm_val(second_hit[[r]])) { best_second_agree_k2g <- FALSE; break }
     }
     
-    assigned_taxonomy <- NULL
+    final_vals <- if (best_second_agree_k2g) best_vals else consensus_to_best(otu_hits, best_vals)
     
-    if (nrow(high_hits) == 1) {
-      if (genus_check(high_hits[1, ], high_hits[-1, ])) {
-        assigned_taxonomy <- as.list(high_hits[1, taxonomic_levels])
-        assigned_taxonomy$qseqid <- otu
-      }
-    }
+    if (!fully_assigned(final_vals)) next
     
-    if (is.null(assigned_taxonomy) && nrow(high_hits) > 1) {
-      pidents <- as.numeric(high_hits$pident)
-      best_idx <- which.max(pidents)
-      pdiff <- pidents[best_idx] - pidents[-best_idx]
-      if (any(pdiff >= 1)) {
-        if (genus_check(high_hits[best_idx, ], high_hits[-best_idx, ])) {
-          assigned_taxonomy <- as.list(high_hits[best_idx, taxonomic_levels])
-          assigned_taxonomy$qseqid <- otu
-        }
-      }
-    }
-    
-    if (is.null(assigned_taxonomy) && nrow(high_hits) > 1) {
-      unique_genus <- unique(high_hits$genus)
-      unique_genus <- unique_genus[!is.na(unique_genus) & unique_genus != "Unclassified" & unique_genus != ""]
-      if (length(unique_genus) == 1) {
-        assigned_taxonomy <- as.list(high_hits[1, taxonomic_levels[1:6]])
-        assigned_taxonomy$species <- "Unclassified"
-        assigned_taxonomy$qseqid <- otu
-      }
-    }
-    
-    if (!is.null(assigned_taxonomy)) {
-      for (lvl in taxonomic_levels[1:6]) {
-        if (assigned_taxonomy[[lvl]] == "Unclassified" ||
-            is.na(assigned_taxonomy[[lvl]]) ||
-            assigned_taxonomy[[lvl]] == "") {
-          check_hits <- otu_hits[as.numeric(otu_hits$pident) >= 90, ]
-          defined_vals <- check_hits[[lvl]][!is.na(check_hits[[lvl]]) & check_hits[[lvl]] != "" & check_hits[[lvl]] != "Unclassified"]
-          if (length(defined_vals) > 0 && length(unique(defined_vals)) == 1) {
-            assigned_taxonomy[[lvl]] <- unique(defined_vals)
-          }
-        }
-      }
-      assigned_otus[[otu]] <- assigned_taxonomy
-      next
-    }
-    # If genus does not agree, skip for now
+    final_vals$qseqid <- otu
+    assigned_otus[[otu]] <- final_vals
+    easy_otus <- c(easy_otus, otu)
+    next
   }
   
   # -- Build assigned_otus_df, guaranteeing all columns exist and are ordered --
@@ -181,30 +193,30 @@ easy_assignments <- function(
   }
   
   still_remaining <- setdiff(all_otus, assigned_otus_df$qseqid)
-  remaining_otus_df <- blast_filtered[blast_filtered$qseqid %in% still_remaining, ]
+  remaining_otus_df <- blast_filtered[blast_filtered$qseqid %in% still_remaining, , drop = FALSE]
   
-  # === FINAL KINGDOM CHECK ===
+  # === FINAL KINGDOM CHECK (kept) ===
   bad_otus <- character()
   for (otu in assigned_otus_df$qseqid) {
-    otu_hits <- blast_filtered[blast_filtered$qseqid == otu, ]
+    otu_hits <- blast_filtered[blast_filtered$qseqid == otu, , drop = FALSE]
     n_hits <- nrow(otu_hits)
     n_fungal <- sum(tolower(otu_hits$kingdom) == "fungi")
     if (n_hits == 0) next
     if (n_fungal / n_hits <= 0.5) bad_otus <- c(bad_otus, otu)
   }
   if (length(bad_otus) > 0) {
-    assigned_otus_df <- assigned_otus_df[!assigned_otus_df$qseqid %in% bad_otus, ]
+    assigned_otus_df <- assigned_otus_df[!assigned_otus_df$qseqid %in% bad_otus, , drop = FALSE]
     still_remaining <- union(still_remaining, bad_otus)
-    remaining_otus_df <- blast_filtered[blast_filtered$qseqid %in% still_remaining, ]
+    remaining_otus_df <- blast_filtered[blast_filtered$qseqid %in% still_remaining, , drop = FALSE]
   }
   
-  # === FINAL PHYLUM, CLASS, ORDER DOUBLE CHECK ===
+  # === FINAL PHYLUM, CLASS, ORDER DOUBLE CHECK (kept; scalar fix) ===
   bad_ranks <- character()
   ranks_to_check <- c("phylum", "class", "order")
   for (otu in assigned_otus_df$qseqid) {
-    otu_hits <- blast_filtered[blast_filtered$qseqid == otu, ]
+    otu_hits <- blast_filtered[blast_filtered$qseqid == otu, , drop = FALSE]
     for (rank in ranks_to_check) {
-      assigned_val <- assigned_otus_df[assigned_otus_df$qseqid == otu, rank]
+      assigned_val <- assigned_otus_df[[rank]][assigned_otus_df$qseqid == otu]
       if (is.na(assigned_val) || assigned_val == "" || assigned_val == "Unclassified") {
         blast_vals <- otu_hits[[rank]]
         blast_defined <- blast_vals[!is.na(blast_vals) & blast_vals != "" & blast_vals != "Unclassified"]
@@ -216,9 +228,20 @@ easy_assignments <- function(
     }
   }
   if (length(bad_ranks) > 0) {
-    assigned_otus_df <- assigned_otus_df[!assigned_otus_df$qseqid %in% bad_ranks, ]
+    assigned_otus_df <- assigned_otus_df[!assigned_otus_df$qseqid %in% bad_ranks, , drop = FALSE]
     still_remaining <- union(still_remaining, bad_ranks)
-    remaining_otus_df <- blast_filtered[blast_filtered$qseqid %in% still_remaining, ]
+    remaining_otus_df <- blast_filtered[blast_filtered$qseqid %in% still_remaining, , drop = FALSE]
+  }
+  
+  # === FINAL: enforce fully classified at ALL ranks (kingdom->species) ===
+  is_unclassified <- function(x) is.na(x) | x == "" | x == "Unclassified"
+  incomplete <- Reduce(`|`, lapply(taxonomic_levels, function(r) is_unclassified(assigned_otus_df[[r]])))
+  
+  if (any(incomplete)) {
+    bad2 <- assigned_otus_df$qseqid[incomplete]
+    assigned_otus_df <- assigned_otus_df[!assigned_otus_df$qseqid %in% bad2, , drop = FALSE]
+    still_remaining <- union(still_remaining, bad2)
+    remaining_otus_df <- blast_filtered[blast_filtered$qseqid %in% still_remaining, , drop = FALSE]
   }
   
   assigned_otus_df <- assigned_otus_df[, expected_columns, drop = FALSE]

@@ -12,7 +12,7 @@ easy_assignments(blast_filtered, cutoffs_file = NULL, default_cutoff = 98)
 \item{cutoffs_file}{Path to taxonomy cutoffs CSV file. If not supplied or invalid,
 attempts to locate the default file in the package.}
 
-\item{default_cutoff}{Default percent identity cutoff for species assignment (default: 98)}
+\item{default_cutoff}{Default percent identity cutoff (kept for API compatibility)}
 }
 \value{
 List with assigned_otus_df and remaining_otus_df
