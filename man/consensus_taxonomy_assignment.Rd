@@ -16,4 +16,5 @@ Data frame of consensus assignments (same structure as input).
 }
 \description{
 Only confirms or demotes, never promotes Unclassified.
+FINAL hierarchy check: if any rank is Unclassified, all lower ranks are forced to Unclassified.
 }

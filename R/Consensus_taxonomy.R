@@ -1,6 +1,8 @@
 #' Per-rank consensus filter for taxonomy assignment
 #'
 #' Only confirms or demotes, never promotes Unclassified.
+#' FINAL hierarchy check: if any rank is Unclassified, all lower ranks are forced to Unclassified.
+#'
 #' @param final_table Data frame of taxonomic assignments.
 #' @param blast_qc Data frame of filtered BLAST hits for each OTU.
 #' @return Data frame of consensus assignments (same structure as input).
@@ -81,6 +83,20 @@ consensus_taxonomy_assignment <- function(final_table, blast_qc) {
         final_table_consensus[[rank]][i] <- orig_val
       } else {
         final_table_consensus[[rank]][i] <- "Unclassified"
+      }
+    }
+  }
+  
+  # === FINAL hierarchy cleanup: no classification allowed below an Unclassified above ===
+  for (i in seq_len(nrow(final_table_consensus))) {
+    seen_uncl <- FALSE
+    for (rank in tax_ranks) {
+      v <- norm_val(final_table_consensus[[rank]][i])
+      if (seen_uncl || v == "Unclassified") {
+        seen_uncl <- TRUE
+        final_table_consensus[[rank]][i] <- "Unclassified"
+      } else {
+        final_table_consensus[[rank]][i] <- v
       }
     }
   }
