@@ -26,29 +26,7 @@ consensus_taxonomy_assignment <- function(final_table, blast_qc) {
     otu_hits$evalue_num <- suppressWarnings(as.numeric(otu_hits$evalue))
     otu_hits <- otu_hits[order(otu_hits$evalue_num, na.last = TRUE), , drop = FALSE]
     
-    # ---- Gate: compare BEST vs SECOND; only if disagreement do consensus ----
-    run_consensus <- FALSE
-    if (nrow(otu_hits) >= 2) {
-      best_hit   <- otu_hits[1, , drop = FALSE]
-      second_hit <- otu_hits[2, , drop = FALSE]
-      
-      assigned_vals <- norm_val(final_table[i, tax_ranks, drop = TRUE])
-      classified_ranks <- tax_ranks[assigned_vals != "Unclassified"]
-      
-      if (length(classified_ranks) > 0) {
-        for (rank in classified_ranks) {
-          if (norm_val(best_hit[[rank]]) != norm_val(second_hit[[rank]])) {
-            run_consensus <- TRUE
-            break
-          }
-        }
-      }
-    }
-    
-    # if no disagreement (or no 2nd hit), keep original row unchanged
-    if (!run_consensus) next
-    
-    # ---- Per-rank consensus demotion (top2 agreement OR majority vote) ----
+    # ---- ALWAYS run per-rank consensus demotion (top2 agreement OR majority vote) ----
     for (rank in tax_ranks) {
       orig_val <- norm_val(final_table[[rank]][i])
       
