@@ -264,6 +264,23 @@ easy_assignments <- function(
     remaining_otus_df <- blast_filtered[blast_filtered$qseqid %in% still_remaining, , drop = FALSE]
   }
   
+  # === NEW FINAL: enforce best fungal pident >= 98.5 for ANY easy assignment ===
+  if (nrow(assigned_otus_df) > 0) {
+    bad_pident <- character()
+    for (otu in assigned_otus_df$qseqid) {
+      hits <- blast_filtered[blast_filtered$qseqid == otu & tolower(blast_filtered$kingdom) == "fungi", , drop = FALSE]
+      if (nrow(hits) == 0) { bad_pident <- c(bad_pident, otu); next }
+      pid <- suppressWarnings(as.numeric(hits$pident))
+      best_pid <- max(pid, na.rm = TRUE)
+      if (!is.finite(best_pid) || best_pid < 98.5) bad_pident <- c(bad_pident, otu)
+    }
+    if (length(bad_pident) > 0) {
+      assigned_otus_df <- assigned_otus_df[!assigned_otus_df$qseqid %in% bad_pident, , drop = FALSE]
+      still_remaining <- union(still_remaining, bad_pident)
+      remaining_otus_df <- blast_filtered[blast_filtered$qseqid %in% still_remaining, , drop = FALSE]
+    }
+  }
+  
   assigned_otus_df <- assigned_otus_df[, expected_columns, drop = FALSE]
   
   list(
