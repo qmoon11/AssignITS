@@ -153,6 +153,9 @@ easy_assignments <- function(
       }
       if (any_disagree) next
       
+      # NEW: pident gate applied to the HIT USED for assignment (best_hit)
+      if (is.na(best_hit$pident_num) || best_hit$pident_num < 100) next
+      
       best_vals$qseqid <- otu
       assigned_otus[[otu]] <- best_vals
       easy_otus <- c(easy_otus, otu)
@@ -181,6 +184,9 @@ easy_assignments <- function(
     final_vals <- if (best_second_agree_k2g) best_vals else consensus_to_best(otu_hits, best_vals)
     
     if (!fully_assigned(final_vals)) next
+    
+    # NEW: pident gate applied to the HIT USED for assignment (best_hit)
+    if (is.na(best_hit$pident_num) || best_hit$pident_num < 98.5) next
     
     final_vals$qseqid <- otu
     assigned_otus[[otu]] <- final_vals
@@ -262,23 +268,6 @@ easy_assignments <- function(
     assigned_otus_df <- assigned_otus_df[!assigned_otus_df$qseqid %in% bad2, , drop = FALSE]
     still_remaining <- union(still_remaining, bad2)
     remaining_otus_df <- blast_filtered[blast_filtered$qseqid %in% still_remaining, , drop = FALSE]
-  }
-  
-  # === NEW FINAL: enforce best fungal pident >= 98.5 for ANY easy assignment ===
-  if (nrow(assigned_otus_df) > 0) {
-    bad_pident <- character()
-    for (otu in assigned_otus_df$qseqid) {
-      hits <- blast_filtered[blast_filtered$qseqid == otu & tolower(blast_filtered$kingdom) == "fungi", , drop = FALSE]
-      if (nrow(hits) == 0) { bad_pident <- c(bad_pident, otu); next }
-      pid <- suppressWarnings(as.numeric(hits$pident))
-      best_pid <- max(pid, na.rm = TRUE)
-      if (!is.finite(best_pid) || best_pid < 98.5) bad_pident <- c(bad_pident, otu)
-    }
-    if (length(bad_pident) > 0) {
-      assigned_otus_df <- assigned_otus_df[!assigned_otus_df$qseqid %in% bad_pident, , drop = FALSE]
-      still_remaining <- union(still_remaining, bad_pident)
-      remaining_otus_df <- blast_filtered[blast_filtered$qseqid %in% still_remaining, , drop = FALSE]
-    }
   }
   
   assigned_otus_df <- assigned_otus_df[, expected_columns, drop = FALSE]
