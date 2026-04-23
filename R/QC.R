@@ -146,7 +146,6 @@ plot_alignment_hist <- function(blast, rep_seqs, cutoff_fraction = 0.6) {
       values = stats::setNames(vline_data$color, vline_data$label)
     ) +
     ggplot2::labs(
-      title = "Distribution of alignment lengths",
       x = "Alignment length (bp)",
       y = "Count"
     ) +
